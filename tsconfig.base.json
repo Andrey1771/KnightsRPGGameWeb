@@ -15,7 +15,7 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@knights-rpggame-web/game": ["libs/game/src/index.ts"],
+      "@knights-rpggame-web/game-viewer": ["libs/game-viewer/src/index.ts"],
       "@knights-rpggame-web/shared": ["libs/shared/src/index.ts"]
     }
   },

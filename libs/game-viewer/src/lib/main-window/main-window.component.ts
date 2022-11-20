@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { HttpGameService } from "../services/http-game-service/http-game-service.service";
+import { HttpGameService } from '../services/http-game-service/http-game-service.service';
 
 @Component({
   selector: 'knights-rpggame-web-main-window',
@@ -10,6 +10,8 @@ export class MainWindowComponent implements OnInit {
   constructor(private _httpGameService: HttpGameService) {}
 
   ngOnInit(): void {
-    this._httpGameService.getGameData().subscribe(gameData => console.log(gameData));
+    this._httpGameService
+      .getGameData()
+      .subscribe((gameData) => console.log(gameData));
   }
 }

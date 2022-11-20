@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
-import { KnightsGameScene } from "../scene/knights-game-scene";
+import { KnightsGameScene } from '../scene/knights-game-scene';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class GameManagerService {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -17,16 +17,16 @@ export class GameManagerService {
   private initConfiguration(): void {
     this.config = {
       type: Phaser.WEBGL,
-      height: "100%",
-      width: "100%",
-      scene: [ KnightsGameScene ],
+      height: '100%',
+      width: '100%',
+      scene: [KnightsGameScene],
       parent: 'gameContainer',
       physics: {
         default: 'arcade',
         arcade: {
-          gravity: { y: 100 }
-        }
-      }
+          gravity: { y: 100 },
+        },
+      },
     };
   }
 

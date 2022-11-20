@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { GameManagerService } from "../game-logic/game-manager/game-manager.service";
+import { GameManagerService } from '../game-logic/game-manager/game-manager.service';
 
 @Component({
   selector: 'knights-rpggame-web-game',
@@ -7,10 +7,7 @@ import { GameManagerService } from "../game-logic/game-manager/game-manager.serv
   styleUrls: ['./game.component.scss'],
 })
 export class GameComponent implements OnInit {
-
-  constructor(private _gameManagerService: GameManagerService) {
-
-  }
+  constructor(private _gameManagerService: GameManagerService) {}
 
   ngOnInit() {
     this._gameManagerService.createGame();

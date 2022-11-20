@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
 import { AppComponent } from './app.component';
-import { GameModule } from "@knights-rpggame-web/game";
+import { GameModule } from '@knights-rpggame-web/game-viewer';
 
 @NgModule({
   declarations: [AppComponent],
