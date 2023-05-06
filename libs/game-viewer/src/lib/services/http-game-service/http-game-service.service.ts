@@ -1,8 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { GameConfigurationService } from '@knights-rpggame-web/shared';
-import { GetGameDataMessage } from '../../../../../shared/src/lib/messages/get-game-data-message';
-import { EventBusService } from '../../../../../shared/src/lib/services/event-bus/event-bus.service';
+import { EventBusService, GameConfigurationService, GetGameDataMessage } from '@knights-rpggame-web/shared';
 
 @Injectable({
   providedIn: 'root',

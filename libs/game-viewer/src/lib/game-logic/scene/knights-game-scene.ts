@@ -1,33 +1,51 @@
 import * as Phaser from 'phaser';
+import SpriteWithDynamicBody = Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
 
 export class KnightsGameScene extends Phaser.Scene {
   constructor() {
-    super({ key: 'main' });
+    super({key: 'main'});
   }
-
+  private player: SpriteWithDynamicBody | null = null;
   init() {
     console.log('init method');
   }
+
   preload() {
     console.log('preload method');
     // Load in images and sprites
     this.load.spritesheet(
       'playerSprite',
       'assets/sprites/player/playerSprite.png',
-      { frameWidth: 66, frameHeight: 60 }
+      {frameWidth: 66, frameHeight: 60}
     ); // Made by tokkatrain: https://tokkatrain.itch.io/top-down-basic-set
     //this.load.image('bullet', 'assets/sprites/bullets/bullet6.png');
     //this.load.image('target', 'assets/demoscene/ball.png');
     //this.load.image('background', 'assets/skies/underwater1.png');
   }
+
   create() {
     console.log('create method');
-    const player = this.physics.add.sprite(800, 600, 'playerSprite');
-    player
+    this.player = this.physics.add.sprite(800, 600, 'playerSprite');
+    this.player
       .setOrigin(0.5, 0.5)
       .setDisplaySize(132, 120)
       .setCollideWorldBounds(true)
       .setDrag(500, 500);
+    this.events.on('resize', this.resize, this);
+  }
+
+  override update(time: number, delta: number) {
+    // update game logic here
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    this.player.x += 1;
+  }
+
+  resize(width: number, height: number) {
+    this.cameras.resize(width, height);
+    /*if (this.sys.game && this.sys.game.scale) {
+      this.sys.game.scale.resize(width, height);
+    }*/
   }
 }
 
