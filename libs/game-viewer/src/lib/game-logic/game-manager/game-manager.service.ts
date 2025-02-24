@@ -26,7 +26,7 @@ export class GameManagerService {
       physics: {
         default: 'arcade',
         arcade: {
-          gravity: { y: 100 },
+          gravity: { /*y: 100*/ },
         },
       },
     };

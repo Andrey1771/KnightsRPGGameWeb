@@ -1,6 +1,7 @@
 import {Component, Input, OnInit} from '@angular/core';
 import { GameManagerService } from '../game-logic/game-manager/game-manager.service';
 import {GameInfoDto} from "../dto/game-info-dto";
+import {Observable} from "rxjs";
 
 @Component({
   selector: 'knights-rpggame-web-game',
@@ -9,11 +10,11 @@ import {GameInfoDto} from "../dto/game-info-dto";
 })
 export class GameComponent implements OnInit {
   @Input()
-  public gameData!: GameInfoDto;
+  public gameData!: Observable<GameInfoDto>;
 
   constructor(private _gameManagerService: GameManagerService) {}
 
   ngOnInit() {
-    this._gameManagerService.createGame();
+    this.gameData.subscribe(gameData => this._gameManagerService.createGame());
   }
 }

@@ -2,6 +2,9 @@ import * as Phaser from 'phaser';
 import SpriteWithDynamicBody = Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
 
 export class KnightsGameScene extends Phaser.Scene {
+  private _cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
+  private _player!: SpriteWithDynamicBody;
+
   constructor() {
     super({key: 'main'});
   }
@@ -25,15 +28,54 @@ export class KnightsGameScene extends Phaser.Scene {
 
   create() {
     console.log('create method');
-    this.physics.add.sprite(800, 600, 'playerSprite');
-    this.events.on('resize', this.resize, this);
+    //this.physics.add.sprite(0, 0, 'playerSprite');
+    //this.events.on('resize', this.resize, this);
+
+    this._player = this.physics.add.sprite(100, 450, 'playerSprite');
+    this._player.setBounce(0.2);
+    this._player.setCollideWorldBounds(true);
+    // Player animations
+    this.anims.create({
+      key: 'left',
+      frames: this.anims.generateFrameNumbers('playerSprite', {start: 0, end: 3}),
+      frameRate: 10,
+      repeat: -1,
+    });
+    this.anims.create({
+      key: 'turn',
+      frames: [{ key: 'playerSprite', frame: 9 }],
+      frameRate: 20,
+    });
+    this.anims.create({
+      key: 'right',
+      frames: this.anims.generateFrameNumbers('playerSprite', {start: 5, end: 8}),
+      frameRate: 10,
+      repeat: -1,
+    });
+    // Collision player-platforms
+    // player.body.setGravityY(300);
+    //this.physics.add.collider(player, platforms);
+    // Keyboard handling object
+    this._cursors = this.input.keyboard?.createCursorKeys();
   }
 
   override update(time: number, delta: number) {
-    // update game logic here
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    this.player.x += 1;
+    //this.player.x += 1;
+    //if(gameOver) return;
+    if(this._cursors?.left.isDown){
+      this._player.setVelocityX(-160);
+      this._player.anims.play('left', true);
+    }else if(this._cursors?.right.isDown){
+      this._player.setVelocityX(160);
+      this._player.anims.play('right', true);
+    }else{
+      this._player.setVelocityX(0);
+      this._player.anims.play('turn', true);
+    }
+
+    if(this._cursors?.up.isDown && this._player.body.touching.down){
+      this._player.setVelocityY(-330);
+    }
   }
 
   resize(width: number, height: number) {
