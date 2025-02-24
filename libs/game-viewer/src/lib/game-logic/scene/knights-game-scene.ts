@@ -5,7 +5,7 @@ export class KnightsGameScene extends Phaser.Scene {
   constructor() {
     super({key: 'main'});
   }
-  private player: SpriteWithDynamicBody | null = null;
+
   init() {
     console.log('init method');
   }
@@ -25,12 +25,7 @@ export class KnightsGameScene extends Phaser.Scene {
 
   create() {
     console.log('create method');
-    this.player = this.physics.add.sprite(800, 600, 'playerSprite');
-    this.player
-      .setOrigin(0.5, 0.5)
-      .setDisplaySize(132, 120)
-      .setCollideWorldBounds(true)
-      .setDrag(500, 500);
+    this.physics.add.sprite(800, 600, 'playerSprite');
     this.events.on('resize', this.resize, this);
   }
 

@@ -20,7 +20,7 @@ export class EventBusService implements IEventBus {
 
   private subscriptions: Array<Subscription> = [];
 
-  public raiseEvent(events: object[]): void {
+  public raiseEvent(...events: object[]): void {
     for (const event of events) {
       const eventName = event.constructor.name;
 
