@@ -31,24 +31,37 @@ export class KnightsGameScene extends Phaser.Scene {
     //this.physics.add.sprite(0, 0, 'playerSprite');
     //this.events.on('resize', this.resize, this);
 
-    this._player = this.physics.add.sprite(100, 450, 'playerSprite');
+    this._player = this.physics.add.sprite(100, 450, 'playerSprite', 64);
     this._player.setBounce(0.2);
     this._player.setCollideWorldBounds(true);
     // Player animations
+    const lengthSprite = 9;
     this.anims.create({
       key: 'left',
-      frames: this.anims.generateFrameNumbers('playerSprite', {start: 0, end: 3}),
-      frameRate: 10,
+      frames: this.anims.generateFrameNumbers('playerSprite', {start: lengthSprite - 1, end: (lengthSprite - 2) + (lengthSprite - 1)}),
+      frameRate: 1,
       repeat: -1,
     });
     this.anims.create({
       key: 'turn',
-      frames: [{ key: 'playerSprite', frame: 9 }],
+      frames: [{ key: 'playerSprite', frame: 64 }],
       frameRate: 20,
     });
     this.anims.create({
       key: 'right',
-      frames: this.anims.generateFrameNumbers('playerSprite', {start: 5, end: 8}),
+      frames: this.anims.generateFrameNumbers('playerSprite', {start: 3 * (lengthSprite - 1), end: (lengthSprite - 2) + 3 * (lengthSprite - 1)}),
+      frameRate: 10,
+      repeat: -1,
+    });
+    this.anims.create({
+      key: 'up',
+      frames: this.anims.generateFrameNumbers('playerSprite', {start: 0, end: (lengthSprite - 2)}),
+      frameRate: 10,
+      repeat: -1,
+    });
+    this.anims.create({
+      key: 'down',
+      frames: this.anims.generateFrameNumbers('playerSprite', {start: 2 * (lengthSprite - 1), end: (lengthSprite - 2) + 2 * (lengthSprite - 1)}),
       frameRate: 10,
       repeat: -1,
     });
@@ -68,8 +81,15 @@ export class KnightsGameScene extends Phaser.Scene {
     }else if(this._cursors?.right.isDown){
       this._player.setVelocityX(160);
       this._player.anims.play('right', true);
+    }else if(this._cursors?.up.isDown){
+      this._player.setVelocityY(-160);
+      this._player.anims.play('up', true);
+    }else if(this._cursors?.down.isDown){
+      this._player.setVelocityY(160);
+      this._player.anims.play('down', true);
     }else{
       this._player.setVelocityX(0);
+      this._player.setVelocityY(0);
       this._player.anims.play('turn', true);
     }
 
