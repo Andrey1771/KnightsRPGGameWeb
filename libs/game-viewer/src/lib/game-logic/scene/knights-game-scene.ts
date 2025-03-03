@@ -17,8 +17,8 @@ export class KnightsGameScene extends Phaser.Scene {
     console.log('preload method');
     // Load in images and sprites
     this.load.spritesheet(
-      'playerSprite',
-      'assets/sprites/player/playerSprite.png',
+      'ball',
+      'assets/sprites/player/ball.png',
       {frameWidth: 66, frameHeight: 60}
     ); // Made by tokkatrain: https://tokkatrain.itch.io/top-down-basic-set
     //this.load.image('bullet', 'assets/sprites/bullets/bullet6.png');
@@ -31,11 +31,11 @@ export class KnightsGameScene extends Phaser.Scene {
     //this.physics.add.sprite(0, 0, 'playerSprite');
     //this.events.on('resize', this.resize, this);
 
-    this._player = this.physics.add.sprite(100, 450, 'playerSprite', 64);
+    this._player = this.physics.add.sprite(100, 450, 'ball', 64);
     this._player.setBounce(0.2);
     this._player.setCollideWorldBounds(true);
     // Player animations
-    const lengthSprite = 9;
+    /*const lengthSprite = 9;
     this.anims.create({
       key: 'left',
       frames: this.anims.generateFrameNumbers('playerSprite', {start: lengthSprite - 1, end: (lengthSprite - 2) + (lengthSprite - 1)}),
@@ -64,7 +64,7 @@ export class KnightsGameScene extends Phaser.Scene {
       frames: this.anims.generateFrameNumbers('playerSprite', {start: 2 * (lengthSprite - 1), end: (lengthSprite - 2) + 2 * (lengthSprite - 1)}),
       frameRate: 10,
       repeat: -1,
-    });
+    });*/
     // Collision player-platforms
     // player.body.setGravityY(300);
     //this.physics.add.collider(player, platforms);
@@ -77,20 +77,20 @@ export class KnightsGameScene extends Phaser.Scene {
     //if(gameOver) return;
     if(this._cursors?.left.isDown){
       this._player.setVelocityX(-160);
-      this._player.anims.play('left', true);
+      //this._player.anims.play('left', true);
     }else if(this._cursors?.right.isDown){
       this._player.setVelocityX(160);
-      this._player.anims.play('right', true);
+      //this._player.anims.play('right', true);
     }else if(this._cursors?.up.isDown){
       this._player.setVelocityY(-160);
-      this._player.anims.play('up', true);
+      //this._player.anims.play('up', true);
     }else if(this._cursors?.down.isDown){
       this._player.setVelocityY(160);
-      this._player.anims.play('down', true);
+      //this._player.anims.play('down', true);
     }else{
       this._player.setVelocityX(0);
       this._player.setVelocityY(0);
-      this._player.anims.play('turn', true);
+      //this._player.anims.play('turn', true);
     }
 
     if(this._cursors?.up.isDown && this._player.body.touching.down){
