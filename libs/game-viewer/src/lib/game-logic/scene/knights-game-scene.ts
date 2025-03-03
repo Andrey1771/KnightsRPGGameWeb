@@ -5,6 +5,8 @@ export class KnightsGameScene extends Phaser.Scene {
   private _cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   private _player!: SpriteWithDynamicBody;
 
+  private readonly _playerSpeed = 160;
+
   constructor() {
     super({key: 'main'});
   }
@@ -19,7 +21,7 @@ export class KnightsGameScene extends Phaser.Scene {
     this.load.spritesheet(
       'ball',
       'assets/sprites/player/ball.png',
-      {frameWidth: 66, frameHeight: 60}
+      {frameWidth: 64, frameHeight: 64}
     ); // Made by tokkatrain: https://tokkatrain.itch.io/top-down-basic-set
     //this.load.image('bullet', 'assets/sprites/bullets/bullet6.png');
     //this.load.image('target', 'assets/demoscene/ball.png');
@@ -75,26 +77,64 @@ export class KnightsGameScene extends Phaser.Scene {
   override update(time: number, delta: number) {
     //this.player.x += 1;
     //if(gameOver) return;
-    if(this._cursors?.left.isDown){
-      this._player.setVelocityX(-160);
-      //this._player.anims.play('left', true);
-    }else if(this._cursors?.right.isDown){
-      this._player.setVelocityX(160);
-      //this._player.anims.play('right', true);
-    }else if(this._cursors?.up.isDown){
-      this._player.setVelocityY(-160);
-      //this._player.anims.play('up', true);
-    }else if(this._cursors?.down.isDown){
-      this._player.setVelocityY(160);
-      //this._player.anims.play('down', true);
-    }else{
-      this._player.setVelocityX(0);
-      this._player.setVelocityY(0);
-      //this._player.anims.play('turn', true);
-    }
+
+    this.updateMovesPlayer();
 
     if(this._cursors?.up.isDown && this._player.body.touching.down){
       this._player.setVelocityY(-330);
+    }
+  }
+
+  updateMovesPlayer() {
+    const isLeftDown = this._cursors?.left.isDown;
+    const isRightDown = this._cursors?.right.isDown;
+    const isUpDown = this._cursors?.up.isDown;
+    const isDownDown = this._cursors?.down.isDown;
+
+    // Переменные для хранения скорости по осям X и Y
+    let velocityX = 0;
+    let velocityY = 0;
+
+    // Проверяем нажатие нескольких клавиш и устанавливаем значения скорости
+    if (isLeftDown && isUpDown) {
+      velocityX = -this._playerSpeed / Math.sqrt(2);
+      velocityY = -this._playerSpeed / Math.sqrt(2);
+    } else if (isLeftDown && isDownDown) {
+      velocityX = -this._playerSpeed / Math.sqrt(2);
+      velocityY = this._playerSpeed / Math.sqrt(2);
+    } else if (isRightDown && isUpDown) {
+      velocityX = this._playerSpeed / Math.sqrt(2);
+      velocityY = -this._playerSpeed / Math.sqrt(2);
+    } else if (isRightDown && isDownDown) {
+      velocityX = this._playerSpeed / Math.sqrt(2);
+      velocityY = this._playerSpeed / Math.sqrt(2);
+    }
+    // Для обычных направлений
+    else if (isLeftDown) {
+      velocityX = -this._playerSpeed;
+    } else if (isRightDown) {
+      velocityX = this._playerSpeed;
+    } else if (isUpDown) {
+      velocityY = -this._playerSpeed;
+    } else if (isDownDown) {
+      velocityY = this._playerSpeed;
+    }
+
+    // Устанавливаем скорости перемещения
+    this._player.setVelocityX(velocityX);
+    this._player.setVelocityY(velocityY);
+
+    // Включаем анимацию в зависимости от направления
+    if (velocityX < 0) {
+      this._player.anims.play('left', true);
+    } else if (velocityX > 0) {
+      this._player.anims.play('right', true);
+    } else if (velocityY < 0) {
+      this._player.anims.play('up', true);
+    } else if (velocityY > 0) {
+      this._player.anims.play('down', true);
+    } else {
+      this._player.anims.play('turn', true); // Если не двигается
     }
   }
 
