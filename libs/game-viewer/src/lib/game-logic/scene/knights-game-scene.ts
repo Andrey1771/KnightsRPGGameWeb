@@ -28,12 +28,14 @@ export class KnightsGameScene extends Phaser.Scene {
     //this.load.image('bullet', 'assets/sprites/bullets/bullet6.png');
     //this.load.image('target', 'assets/demoscene/ball.png');
     //this.load.image('background', 'assets/skies/underwater1.png');
+
+    this.load.image('background', 'assets/sprites/background/background.png');
   }
 
   private _bullets!: Phaser.Physics.Arcade.Group;
 
   create() {
-    // ... существующий код
+    this.add.image(1000, 400, 'background').setScale(2); // Подгоняем размер
 
     // Создаём группу для пуль
     this._bullets = this.physics.add.group({
@@ -48,6 +50,9 @@ export class KnightsGameScene extends Phaser.Scene {
 
     // Создаём курсоры для управления
     this._cursors = this.input.keyboard?.createCursorKeys();
+
+    //this.cameras.main.setBackgroundColor('#000'); // Чёрный фон
+    //this.stars = this.add.tileSprite(400, 300, 800, 600, 'background');
   }
 
 
