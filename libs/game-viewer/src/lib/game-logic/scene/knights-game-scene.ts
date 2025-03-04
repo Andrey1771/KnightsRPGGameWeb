@@ -35,7 +35,10 @@ export class KnightsGameScene extends Phaser.Scene {
   private _bullets!: Phaser.Physics.Arcade.Group;
 
   create() {
-    this.add.image(1000, 400, 'background').setScale(2); // Подгоняем размер
+    const { width, height } = this.scale; // Берем размеры сцены
+
+    const background = this.add.image(width / 2, height / 2, 'background');
+    background.setDisplaySize(width, height); // Растягиваем на всю сцену
 
     // Создаём группу для пуль
     this._bullets = this.physics.add.group({
@@ -136,9 +139,7 @@ export class KnightsGameScene extends Phaser.Scene {
 
   resize(width: number, height: number) {
     this.cameras.resize(width, height);
-    /*if (this.sys.game && this.sys.game.scale) {
-      this.sys.game.scale.resize(width, height);
-    }*/
+    this.add.image(width / 2, height / 2, 'background').setDisplaySize(width, height);
   }
 }
 
