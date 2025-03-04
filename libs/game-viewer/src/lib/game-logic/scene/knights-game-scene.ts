@@ -36,8 +36,10 @@ export class KnightsGameScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale; // Берем размеры сцены
+    this.scale.on('resize', this.resize, this);
 
     const background = this.add.image(width / 2, height / 2, 'background');
+    background.setName('background');
     background.setDisplaySize(width, height); // Растягиваем на всю сцену
 
     // Создаём группу для пуль
@@ -137,10 +139,29 @@ export class KnightsGameScene extends Phaser.Scene {
     }
   }
 
-  resize(width: number, height: number) {
-    this.cameras.resize(width, height);
-    this.add.image(width / 2, height / 2, 'background').setDisplaySize(width, height);
+  resize(gameSize: Phaser.Structs.Size) {
+    const { width, height } = gameSize;
+
+    // Изменяем размер камеры
+    this.cameras.main.setSize(width, height);
+
+    // Расширяем границы мира
+    this.physics.world.setBounds(0, 0, width, height);
+
+    // Есть фон, подстраиваем его размер и позицию
+    const background = this.children.getByName('background') as Phaser.GameObjects.Image;
+    if (background) {
+      console.log("background");
+      background.setDisplaySize(width, height);
+      background.setPosition(width / 2, height / 2);
+    }
+
+    // Убеждаемся, что игрок не выйдет за границы нового мира
+    if (this._player) {
+      this._player.setCollideWorldBounds(true);
+    }
   }
+
 }
 
 //
