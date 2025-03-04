@@ -1,11 +1,13 @@
 import * as Phaser from 'phaser';
 import SpriteWithDynamicBody = Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
+import { Bullet } from '../player/bullet';
 
 export class KnightsGameScene extends Phaser.Scene {
   private _cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   private _player!: SpriteWithDynamicBody;
 
   private readonly _playerSpeed = 160;
+  private readonly _bulletSpeed = 160;
 
   constructor() {
     super({key: 'main'});
@@ -28,62 +30,51 @@ export class KnightsGameScene extends Phaser.Scene {
     //this.load.image('background', 'assets/skies/underwater1.png');
   }
 
-  create() {
-    console.log('create method');
-    //this.physics.add.sprite(0, 0, 'playerSprite');
-    //this.events.on('resize', this.resize, this);
+  private _bullets!: Phaser.Physics.Arcade.Group;
 
+  create() {
+    // ... существующий код
+
+    // Создаём группу для пуль
+    this._bullets = this.physics.add.group({
+      classType: Bullet,
+      runChildUpdate: true,
+    });
+
+    // Создание игрока
     this._player = this.physics.add.sprite(100, 450, 'ball', 64);
     this._player.setBounce(0.2);
     this._player.setCollideWorldBounds(true);
-    // Player animations
-    /*const lengthSprite = 9;
-    this.anims.create({
-      key: 'left',
-      frames: this.anims.generateFrameNumbers('playerSprite', {start: lengthSprite - 1, end: (lengthSprite - 2) + (lengthSprite - 1)}),
-      frameRate: 1,
-      repeat: -1,
-    });
-    this.anims.create({
-      key: 'turn',
-      frames: [{ key: 'playerSprite', frame: 64 }],
-      frameRate: 20,
-    });
-    this.anims.create({
-      key: 'right',
-      frames: this.anims.generateFrameNumbers('playerSprite', {start: 3 * (lengthSprite - 1), end: (lengthSprite - 2) + 3 * (lengthSprite - 1)}),
-      frameRate: 10,
-      repeat: -1,
-    });
-    this.anims.create({
-      key: 'up',
-      frames: this.anims.generateFrameNumbers('playerSprite', {start: 0, end: (lengthSprite - 2)}),
-      frameRate: 10,
-      repeat: -1,
-    });
-    this.anims.create({
-      key: 'down',
-      frames: this.anims.generateFrameNumbers('playerSprite', {start: 2 * (lengthSprite - 1), end: (lengthSprite - 2) + 2 * (lengthSprite - 1)}),
-      frameRate: 10,
-      repeat: -1,
-    });*/
-    // Collision player-platforms
-    // player.body.setGravityY(300);
-    //this.physics.add.collider(player, platforms);
-    // Keyboard handling object
+
+    // Создаём курсоры для управления
     this._cursors = this.input.keyboard?.createCursorKeys();
   }
 
-  override update(time: number, delta: number) {
-    //this.player.x += 1;
-    //if(gameOver) return;
 
+  override update(time: number, delta: number) {
+    // Обновление движения игрока
     this.updateMovesPlayer();
 
-    if(this._cursors?.up.isDown && this._player.body.touching.down){
-      this._player.setVelocityY(-330);
+    // Проверка нажатия пробела для стрельбы
+    if (this.input.keyboard?.checkDown(this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE), 200)) {
+      this.shoot();
+    }
+
+    this._bullets.getChildren().forEach((bullet) => {
+      (bullet as Bullet).update(time, delta);
+    });
+
+  }
+
+  shoot() {
+    const bullet = this._bullets.get() as Bullet; // Явное приведение типа
+    if (bullet) {
+      const velocityX = 0;
+      const velocityY = -this._bulletSpeed;
+      bullet.fire(this._player.x, this._player.y, velocityX, velocityY);
     }
   }
+
 
   updateMovesPlayer() {
     const isLeftDown = this._cursors?.left.isDown;
