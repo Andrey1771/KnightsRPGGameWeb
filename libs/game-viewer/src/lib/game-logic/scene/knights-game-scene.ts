@@ -5,84 +5,85 @@ import { Bullet } from '../player/bullet';
 export class KnightsGameScene extends Phaser.Scene {
   private _cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   private _player!: SpriteWithDynamicBody;
-
   private _background!: Phaser.GameObjects.Image;
+  private _bullets!: Phaser.Physics.Arcade.Group;
+  private _enemyBullets!: Phaser.Physics.Arcade.Group; // Добавляем группу вражеских пуль
+  private _playerHP = 3; // Количество жизней
 
   private readonly _playerSpeed = 160;
   private readonly _bulletSpeed = 160;
 
-  private readonly _scaleFactorWidth = 1920;// TODO
+  private readonly _scaleFactorWidth = 1920;
   private readonly _scaleFactorHeight = 1080;
 
-  constructor() {
-    super({key: 'main'});
-  }
+  private _hpText!: Phaser.GameObjects.Text; // Текстовое поле для HP
 
-  init() {
-    console.log('init method');
+  constructor() {
+    super({ key: 'main' });
   }
 
   preload() {
-    console.log('preload method');
-    // Load in images and sprites
-    this.load.spritesheet(
-      'ball',
-      'assets/sprites/player/ball.png',
-      {frameWidth: 64, frameHeight: 64}
-    );
-
+    this.load.spritesheet('ball', 'assets/sprites/player/ball.png', { frameWidth: 64, frameHeight: 64 });
     this.load.image('background', 'assets/sprites/background/background.png');
+    this.load.image('enemyBullet', 'assets/sprites/bullets/enemyBullet.png'); // Загружаем пулю врага
   }
 
-  private _bullets!: Phaser.Physics.Arcade.Group;
-
   create() {
-    const { width, height } = this.scale; // Берем размеры сцены
+    const { width, height } = this.scale;
     this.scale.on('resize', this.resize, this);
 
     this._background = this.add.image(width / 2, height / 2, 'background');
     this._background.setName('background');
-    this._background.setDisplaySize(width, height); // Растягиваем на всю сцену
+    this._background.setDisplaySize(width, height);
 
-    // Создаём группу для пуль
-    this._bullets = this.physics.add.group({
-      classType: Bullet,
-      runChildUpdate: true,
-    });
+    this._bullets = this.physics.add.group({ classType: Bullet, runChildUpdate: true });
+    this._enemyBullets = this.physics.add.group({ classType: Bullet, runChildUpdate: true });
 
-    // Создание игрока
     this._player = this.physics.add.sprite(100, 450, 'ball', 64);
     this._player.setBounce(0.2);
     this._player.setCollideWorldBounds(true);
-    const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight); // 1920x1080 - условный базовый размер
+    const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight);
     this._player.setScale(scaleFactor);
 
-    // Создаём курсоры для управления
     this._cursors = this.input.keyboard?.createCursorKeys();
 
-    //this.cameras.main.setBackgroundColor('#000'); // Чёрный фон
-    //this.stars = this.add.tileSprite(400, 300, 800, 600, 'background');
+
+    // Текстовое поле для отображения HP
+    this._hpText = this.add.text(20, 20, `HP: ${this._playerHP}`, {
+      fontSize: '24px',
+      fontFamily: 'Arial',
+      color: '#ffffff',
+      backgroundColor: '#000000',
+      padding: { x: 10, y: 5 }
+    });
+
+    // Обрабатываем столкновение игрока с вражескими пулями
+    this.physics.add.overlap(this._player, this._enemyBullets, this.onPlayerHit, undefined, this);
+
+    // Тест: стрельба врага (удали или замени на свою логику)
+    this.time.addEvent({
+      delay: 1000,
+      callback: this.enemyShoot,
+      callbackScope: this,
+      loop: true,
+    });
   }
 
-
   override update(time: number, delta: number) {
-    // Обновление движения игрока
     this.updateMovesPlayer();
 
-    // Проверка нажатия пробела для стрельбы
     if (this.input.keyboard?.checkDown(this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE), 200)) {
       this.shoot();
     }
 
-    const { width, height } = this.scale; // Берем размеры сцены
+    const { width, height } = this.scale;
     this._bullets.getChildren().forEach((bullet) => {
       (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight)).update(time, delta);
     });
-
   }
 
   shoot() {
-    const bullet = this._bullets.get() as Bullet; // Явное приведение типа
+    const bullet = this._bullets.get() as Bullet;
     if (bullet) {
       const velocityX = 0;
       const velocityY = -this._bulletSpeed;
@@ -90,6 +91,35 @@ export class KnightsGameScene extends Phaser.Scene {
     }
   }
 
+  enemyShoot() {
+    const enemyBullet = this._enemyBullets.get() as Bullet;
+    if (enemyBullet) {
+      const velocityX = 0;
+      const velocityY = this._bulletSpeed;
+      enemyBullet.fire(Phaser.Math.Between(50, this.scale.width - 50), 50, velocityX, velocityY);
+    }
+  }
+
+  onPlayerHit(player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, bullet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile) {
+    bullet.destroy(); // Удаляем пулю
+    this._playerHP -= 1;
+
+    this._hpText.setText(`HP: ${this._playerHP}`); // Обновляем текст HP
+
+    if (this._playerHP <= 0) {
+      this.playerDeath();
+    }
+  }
+
+  playerDeath() {
+    console.log('Игрок погиб!');
+    this._player.setTint(0xff0000);
+    this._player.setVelocity(0, 0);
+    this._player.anims.stop();
+    this.time.delayedCall(1000, () => {
+      this.scene.restart(); // Перезапуск сцены
+    });
+  }
 
   updateMovesPlayer() {
     const isLeftDown = this._cursors?.left.isDown;
@@ -144,41 +174,26 @@ export class KnightsGameScene extends Phaser.Scene {
     }
   }
 
-
   resize(gameSize: Phaser.Structs.Size) {
     const { width, height } = gameSize;
-
-    // Изменяем размер камеры
     this.cameras.main.setSize(width, height);
-
-    // Расширяем границы мира
     this.physics.world.setBounds(0, 0, width, height);
 
-    // Есть фон, подстраиваем его размер и позицию
     if (this._background) {
-      console.log("background");
       this._background.setDisplaySize(width, height);
       this._background.setPosition(width / 2, height / 2);
     }
 
-    // Убеждаемся, что игрок не выйдет за границы нового мира
     if (this._player) {
-      this._player.setCollideWorldBounds(true);
-    }
-
-    // Масштабируем игрока в зависимости от нового размера экрана
-    if (this._player) {
-      const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight); // 1920x1080 - условный базовый размер
+      const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight);
       this._player.setScale(scaleFactor);
       this._player.setCollideWorldBounds(true);
     }
 
-    // Масштабируем все пули
     this._bullets.getChildren().forEach((bullet) => {
       (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
     });
   }
-
 }
 
 //
