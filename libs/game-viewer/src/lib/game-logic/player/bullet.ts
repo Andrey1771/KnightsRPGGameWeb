@@ -18,7 +18,8 @@ export class Bullet extends Phaser.Physics.Arcade.Sprite {
 
   override update(time: number, delta: number) {
     // Удаляем пулю, если она выходит за пределы экрана
-    if (this.x < 0 || this.x > 800 || this.y < 0 || this.y > 600) {
+    const { width, height } =  this.scene.scale;
+    if (this.x < 0 || this.x > width || this.y < 0 || this.y > height) {
       this.setActive(false);
       this.setVisible(false);
     }
