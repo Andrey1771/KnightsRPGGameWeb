@@ -6,8 +6,13 @@ export class KnightsGameScene extends Phaser.Scene {
   private _cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   private _player!: SpriteWithDynamicBody;
 
+  private _background!: Phaser.GameObjects.Image;
+
   private readonly _playerSpeed = 160;
   private readonly _bulletSpeed = 160;
+
+  private readonly _scaleFactorWidth = 1920;// TODO
+  private readonly _scaleFactorHeight = 1080;
 
   constructor() {
     super({key: 'main'});
@@ -24,10 +29,7 @@ export class KnightsGameScene extends Phaser.Scene {
       'ball',
       'assets/sprites/player/ball.png',
       {frameWidth: 64, frameHeight: 64}
-    ); // Made by tokkatrain: https://tokkatrain.itch.io/top-down-basic-set
-    //this.load.image('bullet', 'assets/sprites/bullets/bullet6.png');
-    //this.load.image('target', 'assets/demoscene/ball.png');
-    //this.load.image('background', 'assets/skies/underwater1.png');
+    );
 
     this.load.image('background', 'assets/sprites/background/background.png');
   }
@@ -38,9 +40,9 @@ export class KnightsGameScene extends Phaser.Scene {
     const { width, height } = this.scale; // Берем размеры сцены
     this.scale.on('resize', this.resize, this);
 
-    const background = this.add.image(width / 2, height / 2, 'background');
-    background.setName('background');
-    background.setDisplaySize(width, height); // Растягиваем на всю сцену
+    this._background = this.add.image(width / 2, height / 2, 'background');
+    this._background.setName('background');
+    this._background.setDisplaySize(width, height); // Растягиваем на всю сцену
 
     // Создаём группу для пуль
     this._bullets = this.physics.add.group({
@@ -52,6 +54,8 @@ export class KnightsGameScene extends Phaser.Scene {
     this._player = this.physics.add.sprite(100, 450, 'ball', 64);
     this._player.setBounce(0.2);
     this._player.setCollideWorldBounds(true);
+    const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight); // 1920x1080 - условный базовый размер
+    this._player.setScale(scaleFactor);
 
     // Создаём курсоры для управления
     this._cursors = this.input.keyboard?.createCursorKeys();
@@ -70,8 +74,9 @@ export class KnightsGameScene extends Phaser.Scene {
       this.shoot();
     }
 
+    const { width, height } = this.scale; // Берем размеры сцены
     this._bullets.getChildren().forEach((bullet) => {
-      (bullet as Bullet).update(time, delta);
+      (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight)).update(time, delta);
     });
 
   }
@@ -139,6 +144,7 @@ export class KnightsGameScene extends Phaser.Scene {
     }
   }
 
+
   resize(gameSize: Phaser.Structs.Size) {
     const { width, height } = gameSize;
 
@@ -149,17 +155,28 @@ export class KnightsGameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, width, height);
 
     // Есть фон, подстраиваем его размер и позицию
-    const background = this.children.getByName('background') as Phaser.GameObjects.Image;
-    if (background) {
+    if (this._background) {
       console.log("background");
-      background.setDisplaySize(width, height);
-      background.setPosition(width / 2, height / 2);
+      this._background.setDisplaySize(width, height);
+      this._background.setPosition(width / 2, height / 2);
     }
 
     // Убеждаемся, что игрок не выйдет за границы нового мира
     if (this._player) {
       this._player.setCollideWorldBounds(true);
     }
+
+    // Масштабируем игрока в зависимости от нового размера экрана
+    if (this._player) {
+      const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight); // 1920x1080 - условный базовый размер
+      this._player.setScale(scaleFactor);
+      this._player.setCollideWorldBounds(true);
+    }
+
+    // Масштабируем все пули
+    this._bullets.getChildren().forEach((bullet) => {
+      (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
+    });
   }
 
 }
