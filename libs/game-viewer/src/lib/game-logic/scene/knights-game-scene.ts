@@ -18,6 +18,8 @@ export class KnightsGameScene extends Phaser.Scene {
 
   private _hpText!: Phaser.GameObjects.Text; // Текстовое поле для HP
 
+  private _enemies!: Phaser.Physics.Arcade.Group;
+
   constructor() {
     super({ key: 'main' });
   }
@@ -26,6 +28,10 @@ export class KnightsGameScene extends Phaser.Scene {
     this.load.spritesheet('ball', 'assets/sprites/player/ball.png', { frameWidth: 64, frameHeight: 64 });
     this.load.image('background', 'assets/sprites/background/background.png');
     this.load.image('enemyBullet', 'assets/sprites/bullets/enemyBullet.png'); // Загружаем пулю врага
+
+    this.load.image('enemy1', 'assets/sprites/enemies/enemy1.png');
+    this.load.image('enemy2', 'assets/sprites/enemies/enemy2.png');
+    this.load.image('enemy3', 'assets/sprites/enemies/enemy3.png');
   }
 
   create() {
@@ -47,7 +53,6 @@ export class KnightsGameScene extends Phaser.Scene {
 
     this._cursors = this.input.keyboard?.createCursorKeys();
 
-
     // Текстовое поле для отображения HP
     this._hpText = this.add.text(20, 20, `HP: ${this._playerHP}`, {
       fontSize: '24px',
@@ -60,13 +65,95 @@ export class KnightsGameScene extends Phaser.Scene {
     // Обрабатываем столкновение игрока с вражескими пулями
     this.physics.add.overlap(this._player, this._enemyBullets, this.onPlayerHit, undefined, this);
 
-    // Тест: стрельба врага (удали или замени на свою логику)
+    // Группа врагов
+    this._enemies = this.physics.add.group();
+
+    // Создаем врагов через случайную генерацию
     this.time.addEvent({
-      delay: 1000,
-      callback: this.enemyShoot,
+      delay: 2000, // Каждые 2 секунды
+      callback: this.spawnRandomEnemy,
       callbackScope: this,
       loop: true,
     });
+
+    this.physics.add.overlap(this._player, this._enemyBullets, this.onPlayerHit, undefined, this);
+  }
+
+  // Функция для создания врагов в случайных местах сверху
+  spawnRandomEnemy() {
+    const { width, height } = this.scale;
+
+    // Рандомное положение врага сверху
+    const randomX = Phaser.Math.Between(0, width);
+    const randomEnemyType = Phaser.Math.Between(1, 3); // Рандомный выбор типа врага (1, 2, или 3)
+    let enemyTexture = 'enemy1';
+    let enemy: any = null;
+    switch (randomEnemyType) {
+      case 1:
+        enemyTexture = 'enemy1';
+        enemy = this.spawnEnemy(randomX, 0, enemyTexture, "straight")
+        break;
+      case 2:
+        enemyTexture = 'enemy2';
+        enemy = this.spawnEnemy(randomX, 0, enemyTexture, "spread")
+        break;
+      case 3:
+        enemyTexture = 'enemy3';
+        enemy = this.spawnEnemy(randomX, 0, enemyTexture, "targeted")
+        break;
+      default:
+        enemy = this.spawnEnemy(randomX, 0, enemyTexture, "straight");
+    }
+
+    // Уничтожаем врага, если он выходит за пределы экрана
+    enemy.setCollideWorldBounds(true);
+    enemy.setData('toDestroy', false);
+
+    enemy.setData('destroy', () => {
+      if (enemy.y > height) {
+        enemy.destroy();
+      }
+    });
+  }
+
+  spawnEnemy(x: number, y: number, texture: string, type: 'straight' | 'spread' | 'targeted') {
+    const enemy = this._enemies.create(x, y, texture);
+    this._enemies.setName(texture);//TODO!
+    enemy.setData('type', type);
+    enemy.setCollideWorldBounds(true); // Добавляем коллизии с миром
+    enemy.setBounce(0.2); // Устанавливаем отскок (при необходимости)
+    enemy.setVelocityY(100); // Даем врагу скорость вниз
+
+    this.time.addEvent({
+      delay: 1500,
+      callback: () => this.enemyShoot(enemy, x, y),
+      loop: true,
+    });
+    return enemy;
+  }
+
+  // Стрельба врага в зависимости от типа
+  enemyShoot(enemy: Phaser.GameObjects.GameObject, x: number, y: number) {
+    const type = enemy.getData('type');
+
+    if (type === 'straight') {
+      this.fireBullet(x, y, 0, this._bulletSpeed);
+    } else if (type === 'spread') {
+      this.fireBullet(x, y, -100, this._bulletSpeed);
+      this.fireBullet(x, y, 0, this._bulletSpeed);
+      this.fireBullet(x, y, 100, this._bulletSpeed);
+    } else if (type === 'targeted') {
+      const angle = Phaser.Math.Angle.Between(x, y, this._player.x, this._player.y);
+      this.fireBullet(x, y, Math.cos(angle) * this._bulletSpeed, Math.sin(angle) * this._bulletSpeed);
+    }
+  }
+
+  // Функция стрельбы
+  fireBullet(x: number, y: number, velocityX: number, velocityY: number) {
+    const bullet = this._enemyBullets.get() as Bullet;
+    if (bullet) {
+      bullet.fire(x, y, velocityX, velocityY);
+    }
   }
 
   override update(time: number, delta: number) {
@@ -75,6 +162,12 @@ export class KnightsGameScene extends Phaser.Scene {
     if (this.input.keyboard?.checkDown(this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE), 200)) {
       this.shoot();
     }
+
+    // Обновляем все врагов
+    this._enemies.getChildren().forEach((enemy) => {
+      (enemy as Phaser.GameObjects.Sprite).update();
+      (enemy as Phaser.GameObjects.Sprite).getData('destroy')();
+    });
 
     const { width, height } = this.scale;
     this._bullets.getChildren().forEach((bullet) => {
@@ -88,15 +181,6 @@ export class KnightsGameScene extends Phaser.Scene {
       const velocityX = 0;
       const velocityY = -this._bulletSpeed;
       bullet.fire(this._player.x, this._player.y, velocityX, velocityY);
-    }
-  }
-
-  enemyShoot() {
-    const enemyBullet = this._enemyBullets.get() as Bullet;
-    if (enemyBullet) {
-      const velocityX = 0;
-      const velocityY = this._bulletSpeed;
-      enemyBullet.fire(Phaser.Math.Between(50, this.scale.width - 50), 50, velocityX, velocityY);
     }
   }
 
@@ -195,6 +279,7 @@ export class KnightsGameScene extends Phaser.Scene {
     });
   }
 }
+
 
 //
 //
