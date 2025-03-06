@@ -1,16 +1,17 @@
 import * as Phaser from 'phaser';
-import SpriteWithDynamicBody = Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
 import { Bullet } from '../player/bullet';
+import {Player} from "../player/player";
 
 export class KnightsGameScene extends Phaser.Scene {
-  private _cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
-  private _player!: SpriteWithDynamicBody;
+
+  private _player!: Player;
+
   private _background!: Phaser.GameObjects.Image;
   private _bullets!: Phaser.Physics.Arcade.Group;
   private _enemyBullets!: Phaser.Physics.Arcade.Group; // Добавляем группу вражеских пуль
   private _playerHP = 3; // Количество жизней
 
-  private readonly _playerSpeed = 160;
+
   private readonly _bulletSpeed = 160;
 
   private readonly _scaleFactorWidth = 1920;
@@ -49,13 +50,11 @@ export class KnightsGameScene extends Phaser.Scene {
     this._enemies = this.physics.add.group();
 
 
-    this._player = this.physics.add.sprite(100, 450, 'ball', 64);
-    this._player.setBounce(0.2);
-    this._player.setCollideWorldBounds(true);
-    const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight);
-    this._player.setScale(scaleFactor);
+    const cursors = this.input.keyboard?.createCursorKeys();
+    this._player = new Player(this, cursors);
+    this._player.create();
 
-    this._cursors = this.input.keyboard?.createCursorKeys();
+
 
     // Текстовое поле для отображения HP
     this._hpText = this.add.text(20, 20, `HP: ${this._playerHP}`, {
@@ -67,7 +66,7 @@ export class KnightsGameScene extends Phaser.Scene {
     });
 
     // Обрабатываем столкновение игрока с вражескими пулями
-    this.physics.add.overlap(this._player, this._enemyBullets, this.onPlayerHit, undefined, this);
+    this._player.overlap(this._enemyBullets, this.onPlayerHit, undefined, this);
 
     // Обрабатываем столкновение пуль игрока с врагами
     this.physics.add.overlap(this._bullets, this._enemies, this.onBulletHitEnemy, undefined, this);
@@ -166,7 +165,7 @@ export class KnightsGameScene extends Phaser.Scene {
   }
 
   override update(time: number, delta: number) {
-    this.updateMovesPlayer();
+    this._player.updateMoves();
 
     if (this.input.keyboard?.checkDown(this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE), 200)) {
       this.shoot();
@@ -205,66 +204,10 @@ export class KnightsGameScene extends Phaser.Scene {
   }
 
   playerDeath() {
-    console.log('Игрок погиб!');
-    this._player.setTint(0xff0000);
-    this._player.setVelocity(0, 0);
-    this._player.anims.stop();
+    this._player.die();
     this.time.delayedCall(1000, () => {
       this.scene.restart(); // Перезапуск сцены
     });
-  }
-
-  updateMovesPlayer() {
-    const isLeftDown = this._cursors?.left.isDown;
-    const isRightDown = this._cursors?.right.isDown;
-    const isUpDown = this._cursors?.up.isDown;
-    const isDownDown = this._cursors?.down.isDown;
-
-    // Переменные для хранения скорости по осям X и Y
-    let velocityX = 0;
-    let velocityY = 0;
-
-    // Проверяем нажатие нескольких клавиш и устанавливаем значения скорости
-    if (isLeftDown && isUpDown) {
-      velocityX = -this._playerSpeed / Math.sqrt(2);
-      velocityY = -this._playerSpeed / Math.sqrt(2);
-    } else if (isLeftDown && isDownDown) {
-      velocityX = -this._playerSpeed / Math.sqrt(2);
-      velocityY = this._playerSpeed / Math.sqrt(2);
-    } else if (isRightDown && isUpDown) {
-      velocityX = this._playerSpeed / Math.sqrt(2);
-      velocityY = -this._playerSpeed / Math.sqrt(2);
-    } else if (isRightDown && isDownDown) {
-      velocityX = this._playerSpeed / Math.sqrt(2);
-      velocityY = this._playerSpeed / Math.sqrt(2);
-    }
-    // Для обычных направлений
-    else if (isLeftDown) {
-      velocityX = -this._playerSpeed;
-    } else if (isRightDown) {
-      velocityX = this._playerSpeed;
-    } else if (isUpDown) {
-      velocityY = -this._playerSpeed;
-    } else if (isDownDown) {
-      velocityY = this._playerSpeed;
-    }
-
-    // Устанавливаем скорости перемещения
-    this._player.setVelocityX(velocityX);
-    this._player.setVelocityY(velocityY);
-
-    // Включаем анимацию в зависимости от направления
-    if (velocityX < 0) {
-      this._player.anims.play('left', true);
-    } else if (velocityX > 0) {
-      this._player.anims.play('right', true);
-    } else if (velocityY < 0) {
-      this._player.anims.play('up', true);
-    } else if (velocityY > 0) {
-      this._player.anims.play('down', true);
-    } else {
-      this._player.anims.play('turn', true); // Если не двигается
-    }
   }
 
   resize(gameSize: Phaser.Structs.Size) {
@@ -277,11 +220,7 @@ export class KnightsGameScene extends Phaser.Scene {
       this._background.setPosition(width / 2, height / 2);
     }
 
-    if (this._player) {
-      const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight);
-      this._player.setScale(scaleFactor);
-      this._player.setCollideWorldBounds(true);
-    }
+    this._player.resize();
 
     this._bullets.getChildren().forEach((bullet) => {
       (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
