@@ -143,7 +143,7 @@ export class KnightsGameScene extends Phaser.Scene {
     enemy.setData('toDestroy', false);
 
     enemy.setData('destroy', () => {
-      if (enemy.y > height) {
+      if (enemy.y >= height - 64/*TODO Размер спрайта противника по y*/) {
         enemy.destroy();
       }
     });
@@ -154,7 +154,6 @@ export class KnightsGameScene extends Phaser.Scene {
     this._enemies.setName(texture);//TODO!
     enemy.setData('type', type);
     enemy.setCollideWorldBounds(true); // Добавляем коллизии с миром
-    enemy.setBounce(0.2); // Устанавливаем отскок
     enemy.setVelocityY(100); // Даем врагу скорость вниз
 
     this.time.addEvent({
@@ -196,13 +195,17 @@ export class KnightsGameScene extends Phaser.Scene {
       this.shoot();
     }
 
+    const { width, height } = this.scale;
     // Обновляем все врагов
     this._enemies.getChildren().forEach((enemy) => {
-      (enemy as Phaser.GameObjects.Sprite).update();
-      (enemy as Phaser.GameObjects.Sprite).getData('destroy')();
+      const enemySprite = enemy as Phaser.GameObjects.Sprite;
+      enemySprite.update();
+
+      if (enemySprite.y >= height - 64/*TODO Размер спрайта противника по y*/) {
+        enemySprite.destroy(); // Удаляем врага
+      }
     });
 
-    const { width, height } = this.scale;
     this._bullets.getChildren().forEach((bullet) => {
       (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight)).update(time, delta);
     });

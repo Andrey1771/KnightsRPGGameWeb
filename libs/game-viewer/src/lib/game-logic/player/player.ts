@@ -25,7 +25,6 @@ export class Player {
 
   create() {
     this._sprite = this._scene.physics.add.sprite(100, 450, 'ball', 64);
-    this._sprite.setBounce(0.2);
     this._sprite.setCollideWorldBounds(true);
     const { width, height } = this._scene.scale;
     const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight);
