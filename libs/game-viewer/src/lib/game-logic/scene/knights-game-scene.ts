@@ -80,6 +80,8 @@ export class KnightsGameScene extends Phaser.Scene {
 
     // Обрабатываем столкновение пуль игрока с врагами
     this.physics.add.overlap(this._bullets, this._enemies, this.onBulletHitEnemy, undefined, this);
+    // Обрабатываем столкновение пуль игрока с вражескими пулями
+    this.physics.add.overlap(this._bullets, this._enemyBullets, this.onBulletsCollide, undefined, this);
 
     // Создаем врагов через случайную генерацию
     this.time.addEvent({
@@ -115,6 +117,12 @@ export class KnightsGameScene extends Phaser.Scene {
     if (this._playerHP <= 0) { //TODO Оставить одну
       this.playerDeath(); // Если HP закончилось — игрок умирает
     }
+  }
+
+  // Обработчик столкновения пуль игрока с вражескими пулями
+  onBulletsCollide(playerBullet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, enemyBullet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile) {
+    playerBullet.destroy(); // Уничтожаем пулю игрока
+    enemyBullet.destroy();  // Уничтожаем пулю врага
   }
 
 // Обработчик попадания пули во врага
