@@ -47,7 +47,6 @@ export class Player {
       const { width, height } = this._scene.scale;
       const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight);
       this._sprite.setScale(scaleFactor);
-      this._sprite.setCollideWorldBounds(true);
     }
   }
 

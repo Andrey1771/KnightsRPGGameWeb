@@ -139,11 +139,11 @@ export class KnightsGameScene extends Phaser.Scene {
     }
 
     // Уничтожаем врага, если он выходит за пределы экрана
-    enemy.setCollideWorldBounds(true);
+    //enemy.setCollideWorldBounds(true);
     enemy.setData('toDestroy', false);
 
     enemy.setData('destroy', () => {
-      if (enemy.y >= height - 64/*TODO Размер спрайта противника по y*/) {
+      if (enemy.y >= height - enemy.height/*TODO Размер спрайта противника по y*/) {
         enemy.destroy();
       }
     });
@@ -153,21 +153,25 @@ export class KnightsGameScene extends Phaser.Scene {
     const enemy = this._enemies.create(x, y, texture);
     this._enemies.setName(texture);//TODO!
     enemy.setData('type', type);
-    enemy.setCollideWorldBounds(true); // Добавляем коллизии с миром
     enemy.setVelocityY(100); // Даем врагу скорость вниз
 
     this.time.addEvent({
       delay: 1500,
-      callback: () => this.enemyShoot(enemy, x, y),
+      callback: () => this.enemyShoot(enemy),
       loop: true,
     });
     return enemy;
   }
 
   // Стрельба врага в зависимости от типа
-  enemyShoot(enemy: Phaser.GameObjects.GameObject, x: number, y: number) {
+  enemyShoot(enemy: Phaser.GameObjects.GameObject) {
     const type = enemy.getData('type');
-
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore TODO есть необходимо подправить тип?
+    const x = enemy.x;
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const y = enemy.y;
     if (type === 'straight') {
       this.fireBullet(x, y, 0, this._bulletSpeed);
     } else if (type === 'spread') {
@@ -201,7 +205,7 @@ export class KnightsGameScene extends Phaser.Scene {
       const enemySprite = enemy as Phaser.GameObjects.Sprite;
       enemySprite.update();
 
-      if (enemySprite.y >= height - 64/*TODO Размер спрайта противника по y*/) {
+      if (enemySprite.y >= height - enemySprite.height/*TODO Размер спрайта противника по y*/) {
         enemySprite.destroy(); // Удаляем врага
       }
     });
