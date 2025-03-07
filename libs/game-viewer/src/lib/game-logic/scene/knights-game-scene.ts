@@ -9,6 +9,7 @@ export class KnightsGameScene extends Phaser.Scene {
   private _background!: Phaser.GameObjects.Image;
   private _bullets!: Phaser.Physics.Arcade.Group;
   private _enemyBullets!: Phaser.Physics.Arcade.Group; // Добавляем группу вражеских пуль
+  private _enemies!: Phaser.Physics.Arcade.Group;
   private _playerHP = 3; // Количество жизней
 
 
@@ -18,8 +19,9 @@ export class KnightsGameScene extends Phaser.Scene {
   private readonly _scaleFactorHeight = 1080;
 
   private _hpText!: Phaser.GameObjects.Text; // Текстовое поле для HP
-
-  private _enemies!: Phaser.Physics.Arcade.Group;
+  private _scoreText!: Phaser.GameObjects.Text; // Добавлен текст счета
+  private _score = 0; // Переменная счета
+  private _gameTime = 0; // Время в игре
 
 
   constructor() {
@@ -49,15 +51,21 @@ export class KnightsGameScene extends Phaser.Scene {
     // Группа врагов
     this._enemies = this.physics.add.group();
 
-
     const cursors = this.input.keyboard?.createCursorKeys();
     this._player = new Player(this, cursors);
     this._player.create();
 
-
-
     // Текстовое поле для отображения HP
     this._hpText = this.add.text(20, 20, `HP: ${this._playerHP}`, {
+      fontSize: '24px',
+      fontFamily: 'Arial',
+      color: '#ffffff',
+      backgroundColor: '#000000',
+      padding: { x: 10, y: 5 }
+    });
+
+
+    this._scoreText = this.add.text(width - 150, 20, `Score: ${this._score}`, {
       fontSize: '24px',
       fontFamily: 'Arial',
       color: '#ffffff',
@@ -78,12 +86,29 @@ export class KnightsGameScene extends Phaser.Scene {
       callbackScope: this,
       loop: true,
     });
+
+    // Таймер для начисления очков за время
+    this.time.addEvent({
+      delay: 1000, // Каждую секунду
+      callback: () => {
+        this._gameTime += 1;
+        this.addScore(10); // +10 очков за секунду
+      },
+      callbackScope: this,
+      loop: true
+    });
+  }
+
+  addScore(amount: number) {
+    this._score += amount;
+    this._scoreText.setText(`Score: ${this._score}`);
   }
 
 // Обработчик попадания пули во врага
   onBulletHitEnemy(bullet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, enemy: (Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile)) {
     bullet.destroy(); // Удаляем пулю
     enemy.destroy();  // Удаляем врага
+    this.addScore(100); // +100 очков за убийство врага
   }
 
 
