@@ -75,6 +75,8 @@ export class KnightsGameScene extends Phaser.Scene {
 
     // Обрабатываем столкновение игрока с вражескими пулями
     this._player.overlap(this._enemyBullets, this.onPlayerHit, undefined, this);
+    // Добавляем обработку столкновения игрока с врагами
+    this._player.overlap(this._enemies, this.onPlayerCollideWithEnemy, undefined, this);
 
     // Обрабатываем столкновение пуль игрока с врагами
     this.physics.add.overlap(this._bullets, this._enemies, this.onBulletHitEnemy, undefined, this);
@@ -102,6 +104,17 @@ export class KnightsGameScene extends Phaser.Scene {
   addScore(amount: number) {
     this._score += amount;
     this._scoreText.setText(`Score: ${this._score}`);
+  }
+
+  // Метод для обработки столкновения игрока с врагами
+  onPlayerCollideWithEnemy(player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile) {
+    enemy.destroy(); // Уничтожаем врага
+    this._playerHP -= 1; // Отнимаем здоровье у игрока
+    this._hpText.setText(`HP: ${this._playerHP}`); // Обновляем отображение HP
+
+    if (this._playerHP <= 0) { //TODO Оставить одну
+      this.playerDeath(); // Если HP закончилось — игрок умирает
+    }
   }
 
 // Обработчик попадания пули во врага
