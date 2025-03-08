@@ -269,7 +269,12 @@ export class KnightsGameScene extends Phaser.Scene {
   }
 
   resize(gameSize: Phaser.Structs.Size) {
-    const { width, height } = gameSize;
+    const width = this.scale.width;
+    const height = this.scale.height;
+
+    const prevWidth = this._background.displayWidth;
+    const prevHeight = this._background.displayHeight;
+
     this.cameras.main.setSize(width, height);
     this.physics.world.setBounds(0, 0, width, height);
 
@@ -278,18 +283,36 @@ export class KnightsGameScene extends Phaser.Scene {
       this._background.setPosition(width / 2, height / 2);
     }
 
-    this._player.resize();
+    const scaleFactorX = width / prevWidth;
+    const scaleFactorY = height / prevHeight;
 
+    // Пересчитываем позицию игрока относительно нового размера
+
+    this._player.resize(prevWidth, prevHeight);
+
+    // Пересчитываем все пули
     this._bullets.getChildren().forEach((bullet) => {
       (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
+      (bullet as Bullet).x *= scaleFactorX;
+      (bullet as Bullet).y *= scaleFactorY;
     });
 
     this._enemyBullets.getChildren().forEach((bullet) => {
       (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
+      (bullet as Bullet).x *= scaleFactorX;
+      (bullet as Bullet).y *= scaleFactorY;
     });
 
+    // Пересчитываем всех врагов
     this._enemies.getChildren().forEach((enemy) => {
       (enemy as Phaser.GameObjects.Sprite).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
+      (enemy as Phaser.GameObjects.Sprite).x *= scaleFactorX;
+      (enemy as Phaser.GameObjects.Sprite).y *= scaleFactorY;
     });
+
+    // Обновляем UI (HP и Score)
+    this._hpText.setPosition(20, 20);
+    this._scoreText.setPosition(width - 150, 20);
   }
+
 }

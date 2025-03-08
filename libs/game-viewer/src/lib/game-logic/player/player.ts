@@ -42,9 +42,16 @@ export class Player {
     this._sprite.anims.stop();
   }
 
-  resize() {
+  resize(prevWidth: number, prevHeight: number) {
+
     if (this._sprite) {
       const { width, height } = this._scene.scale;
+      const scaleFactorX = width / prevWidth;
+      const scaleFactorY = height / prevHeight;
+
+      this._sprite.setPosition(this._sprite.x * scaleFactorX, this._sprite.y * scaleFactorY);
+
+
       const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight);
       this._sprite.setScale(scaleFactor);
     }
