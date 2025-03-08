@@ -172,6 +172,11 @@ export class KnightsGameScene extends Phaser.Scene {
 
   spawnEnemy(x: number, y: number, texture: string, type: 'straight' | 'spread' | 'targeted') {
     const enemy = this._enemies.create(x, y, texture);
+
+    const { width, height } = this.scale;
+    const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight);
+    enemy.setScale(scaleFactor);
+
     this._enemies.setName(texture);//TODO!
     enemy.setData('type', type);
     enemy.setVelocityY(100); // Даем врагу скорость вниз
@@ -277,6 +282,14 @@ export class KnightsGameScene extends Phaser.Scene {
 
     this._bullets.getChildren().forEach((bullet) => {
       (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
+    });
+
+    this._enemyBullets.getChildren().forEach((bullet) => {
+      (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
+    });
+
+    this._enemies.getChildren().forEach((enemy) => {
+      (enemy as Phaser.GameObjects.Sprite).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
     });
   }
 }
