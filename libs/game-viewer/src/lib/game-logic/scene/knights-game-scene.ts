@@ -291,23 +291,26 @@ export class KnightsGameScene extends Phaser.Scene {
     this._player.resize(prevWidth, prevHeight);
 
     // Пересчитываем все пули
-    this._bullets.getChildren().forEach((bullet) => {
-      (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
-      (bullet as Bullet).x *= scaleFactorX;
-      (bullet as Bullet).y *= scaleFactorY;
+    this._bullets.getChildren().forEach((b) => {
+      const bullet = b as Bullet;
+      bullet.setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
+      bullet.x *= scaleFactorX;
+      bullet.y *= scaleFactorY;
     });
 
-    this._enemyBullets.getChildren().forEach((bullet) => {
-      (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
-      (bullet as Bullet).x *= scaleFactorX;
-      (bullet as Bullet).y *= scaleFactorY;
+    this._enemyBullets.getChildren().forEach((b) => {
+      const bullet = b as Bullet;
+      bullet.setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
+      bullet.x *= scaleFactorX;
+      bullet.y *= scaleFactorY;
     });
 
     // Пересчитываем всех врагов
-    this._enemies.getChildren().forEach((enemy) => {
-      (enemy as Phaser.GameObjects.Sprite).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
-      (enemy as Phaser.GameObjects.Sprite).x *= scaleFactorX;
-      (enemy as Phaser.GameObjects.Sprite).y *= scaleFactorY;
+    this._enemies.getChildren().forEach((e) => {
+      const enemy = e as Phaser.GameObjects.Sprite;
+      enemy.setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
+      enemy.x *= scaleFactorX;
+      enemy.y *= scaleFactorY;
     });
 
     // Обновляем UI (HP и Score)
