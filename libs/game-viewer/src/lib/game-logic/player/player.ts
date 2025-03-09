@@ -10,6 +10,11 @@ export class Player {
     return this._sprite.y
   }
 
+  private _playerHP!: number; // Количество жизней
+  public get hp() {
+    return this._playerHP
+  }
+
   private readonly _playerSpeed = 160;
 
   private readonly _scene: Phaser.Scene;
@@ -29,6 +34,8 @@ export class Player {
     const { width, height } = this._scene.scale;
     const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight);
     this._sprite.setScale(scaleFactor);
+
+    this._playerHP = 3;
   }
 
   overlap(object2: Phaser.Types.Physics.Arcade.ArcadeColliderType, collideCallback?: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback | undefined, processCallback?: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback | undefined, callbackContext?: any): Phaser.Physics.Arcade.Collider {
@@ -40,6 +47,10 @@ export class Player {
     this._sprite.setTint(0xff0000);
     this._sprite.setVelocity(0, 0);
     this._sprite.anims.stop();
+  }
+
+  getHit(damage: number) {
+    this._playerHP -= damage;
   }
 
   resize(prevWidth: number, prevHeight: number) {
