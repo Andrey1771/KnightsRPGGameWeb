@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import SpriteWithDynamicBody = Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
+import {Bullet} from "./bullet";
 
 export class Player {
   private _sprite!: SpriteWithDynamicBody;
@@ -20,6 +21,11 @@ export class Player {
   private readonly _scene: Phaser.Scene;
   private readonly _cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
 
+  // TODO private
+  public _bullets!: Phaser.Physics.Arcade.Group;
+
+  private readonly _bulletSpeed = 160;
+
   private readonly _scaleFactorWidth = 1920;
   private readonly _scaleFactorHeight = 1080;
 
@@ -36,6 +42,8 @@ export class Player {
     this._sprite.setScale(scaleFactor);
 
     this._playerHP = 3;
+
+    this._bullets = this._scene.physics.add.group({ classType: Bullet, runChildUpdate: true });
   }
 
   overlap(object2: Phaser.Types.Physics.Arcade.ArcadeColliderType, collideCallback?: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback | undefined, processCallback?: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback | undefined, callbackContext?: any): Phaser.Physics.Arcade.Collider {
@@ -54,21 +62,32 @@ export class Player {
   }
 
   resize(prevWidth: number, prevHeight: number) {
+    const { width, height } = this._scene.scale;
+    const scaleFactorX = width / prevWidth;
+    const scaleFactorY = height / prevHeight;
 
-    if (this._sprite) {
-      const { width, height } = this._scene.scale;
-      const scaleFactorX = width / prevWidth;
-      const scaleFactorY = height / prevHeight;
-
-      this._sprite.setPosition(this._sprite.x * scaleFactorX, this._sprite.y * scaleFactorY);
+    this._sprite.setPosition(this._sprite.x * scaleFactorX, this._sprite.y * scaleFactorY);
 
 
-      const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight);
-      this._sprite.setScale(scaleFactor);
-    }
+    const scaleFactor = Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight);
+    this._sprite.setScale(scaleFactor);
+
+    this.resizeBullets(scaleFactorX, scaleFactorY);
   }
 
-  updateMoves() {
+  private resizeBullets(scaleFactorX: number, scaleFactorY: number) {
+    const { width, height } = this._scene.scale;
+
+    // Пересчитываем все пули
+    this._bullets.getChildren().forEach((b) => {
+      const bullet = b as Bullet;
+      bullet.setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
+      bullet.x *= scaleFactorX;
+      bullet.y *= scaleFactorY;
+    });
+  }
+
+  private updateMoves() {
     const cursors = this._cursors;
     const isLeftDown = cursors?.left.isDown;
     const isRightDown = cursors?.right.isDown;
@@ -119,6 +138,33 @@ export class Player {
       this._sprite.anims.play('down', true);
     } else {
       this._sprite.anims.play('turn', true); // Если не двигается
+    }
+  }
+
+  update(time: number, delta: number) {
+    this.updateMoves();
+
+    if (this._scene.input.keyboard?.checkDown(this._scene.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE), 200)) {
+      this.shoot();
+    }
+
+    this.updateBullets(time, delta);
+  }
+
+  private updateBullets(time: number, delta: number) {
+    const { width, height } = this._scene.scale;
+
+    this._bullets.getChildren().forEach((bullet) => {
+      (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight)).update(time, delta);
+    });
+  }
+
+  shoot() {
+    const bullet = this._bullets.get() as Bullet;
+    if (bullet) {
+      const velocityX = 0;
+      const velocityY = -this._bulletSpeed;
+      bullet.fire(this.x, this.y, velocityX, velocityY);
     }
   }
 }

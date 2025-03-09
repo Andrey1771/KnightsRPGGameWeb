@@ -1,20 +1,12 @@
 import * as Phaser from 'phaser';
-import { Bullet } from '../player/bullet';
 import {Player} from "../player/player";
 import {Enemies} from "../player/enemies";
 
 export class KnightsGameScene extends Phaser.Scene {
-
   private _player!: Player;
 
   private _background!: Phaser.GameObjects.Image;
-  private _bullets!: Phaser.Physics.Arcade.Group;
   private _enemies!: Enemies;
-
-  private readonly _bulletSpeed = 160;
-
-  private readonly _scaleFactorWidth = 1920;
-  private readonly _scaleFactorHeight = 1080;
 
   private _hpText!: Phaser.GameObjects.Text; // Текстовое поле для HP
   private _scoreText!: Phaser.GameObjects.Text; // Добавлен текст счета
@@ -44,7 +36,7 @@ export class KnightsGameScene extends Phaser.Scene {
     this._background.setName('background');
     this._background.setDisplaySize(width, height);
 
-    this._bullets = this.physics.add.group({ classType: Bullet, runChildUpdate: true });
+
 
     const cursors = this.input.keyboard?.createCursorKeys();
     this._player = new Player(this, cursors);
@@ -79,9 +71,9 @@ export class KnightsGameScene extends Phaser.Scene {
     this._player.overlap(this._enemies._enemies, this.onPlayerCollideWithEnemy, undefined, this);
 
     // TODO Обрабатываем столкновение пуль игрока с врагами
-    this.physics.add.overlap(this._bullets, this._enemies._enemies, this.onBulletHitEnemy, undefined, this);
+    this.physics.add.overlap(this._player._bullets, this._enemies._enemies, this.onBulletHitEnemy, undefined, this);
     // TODO Обрабатываем столкновение пуль игрока с вражескими пулями
-    this.physics.add.overlap(this._bullets, this._enemies._enemyBullets, this.onBulletsCollide, undefined, this);
+    this.physics.add.overlap(this._player._bullets, this._enemies._enemyBullets, this.onBulletsCollide, undefined, this);
 
     // Создаем врагов через случайную генерацию
     this.time.addEvent({
@@ -132,31 +124,9 @@ export class KnightsGameScene extends Phaser.Scene {
     this.addScore(100); // +100 очков за убийство врага
   }
 
-
-
-
   override update(time: number, delta: number) {
-    this._player.updateMoves();
-
-    if (this.input.keyboard?.checkDown(this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE), 200)) {
-      this.shoot();
-    }
-
-    const { width, height } = this.scale;
+    this._player.update(time, delta);
     this._enemies.update();
-
-    this._bullets.getChildren().forEach((bullet) => {
-      (bullet as Bullet).setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight)).update(time, delta);
-    });
-  }
-
-  shoot() {
-    const bullet = this._bullets.get() as Bullet;
-    if (bullet) {
-      const velocityX = 0;
-      const velocityY = -this._bulletSpeed;
-      bullet.fire(this._player.x, this._player.y, velocityX, velocityY);
-    }
   }
 
   onPlayerHit(player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, bullet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile) {
@@ -198,14 +168,6 @@ export class KnightsGameScene extends Phaser.Scene {
     // Пересчитываем позицию игрока относительно нового размера
 
     this._player.resize(prevWidth, prevHeight);
-
-    // Пересчитываем все пули
-    this._bullets.getChildren().forEach((b) => {
-      const bullet = b as Bullet;
-      bullet.setScale(Math.min(width / this._scaleFactorWidth, height / this._scaleFactorHeight));
-      bullet.x *= scaleFactorX;
-      bullet.y *= scaleFactorY;
-    });
 
     this._enemies.resize(scaleFactorX, scaleFactorY);
 
