@@ -1,8 +1,11 @@
 import { Injectable } from '@angular/core';
 import { KnightsGameScene } from '../scene/knights-game-scene';
-import {MainMenuScene} from "../scene/main-menu-scene";
-import {MultiplayerScene} from "../scene/multiplayer-scene";
-import {SettingsScene} from "../scene/settings-scene";
+import { MainMenuScene } from "../scene/main-menu-scene";
+import { MultiplayerScene } from "../scene/multiplayer-scene";
+import { SettingsScene } from "../scene/settings-scene";
+import { CreateGameScene } from '../scene/create-game-scene';
+import { LobbyScene } from "../scene/lobby-scene";
+import { CreateLobbyScene } from '../scene/create-lobby-scene';
 
 @Injectable({
   providedIn: 'root',
@@ -20,7 +23,7 @@ export class GameManagerService {
       type: Phaser.WEBGL,
       height: '100%',
       width: '100%',
-      scene: [MainMenuScene, KnightsGameScene, MultiplayerScene, SettingsScene],
+      scene: [MainMenuScene, KnightsGameScene, MultiplayerScene, CreateGameScene, CreateLobbyScene, LobbyScene, SettingsScene],
       scale: {
         mode: Phaser.Scale.ScaleModes.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,

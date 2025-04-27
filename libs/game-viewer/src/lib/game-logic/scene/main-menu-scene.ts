@@ -8,16 +8,14 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('menuBg', 'assets/sprites/background/menu_background.png'); // Фон меню
+    this.load.image('menuBg', 'assets/sprites/background/menu_background.png');
   }
 
   create() {
     const { width, height } = this.scale;
 
-    // Фон
     this.add.image(width / 2, height / 2, 'menuBg').setDisplaySize(width, height);
 
-    // Заголовок
     this.add.text(width / 2, height / 4, 'Knights Game', {
       fontSize: '48px',
       fontFamily: 'Arial',
@@ -25,13 +23,12 @@ export class MainMenuScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Кнопки
     this.createButton(width / 2, height / 2 - 50, 'Начать игру', () => {
       this.scene.start('main');
     });
 
     this.createButton(width / 2, height / 2 + 10, 'Создать игру', () => {
-      this.startMultiplayer(true);
+      this.scene.start('CreateLobbyScene');
     });
 
     this.createButton(width / 2, height / 2 + 70, 'Присоединиться', () => {
@@ -57,12 +54,7 @@ export class MainMenuScene extends Phaser.Scene {
     button.on('pointerdown', callback);
   }
 
-  startMultiplayer(isHost: boolean) {
-    console.log(isHost ? 'Создание игры...' : 'Присоединение...');
-    this.scene.start('MultiplayerScene', { isHost });
-  }
-
-  showJoinGameUI() { //TODO Подправить или вынести
+  showJoinGameUI() {
     if (!this.inputField) {
       this.inputField = document.createElement('input');
       this.inputField.type = 'text';
