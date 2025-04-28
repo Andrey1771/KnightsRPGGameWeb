@@ -32,7 +32,7 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     this.createButton(width / 2, height / 2 + 70, 'Присоединиться', () => {
-      this.showJoinGameUI();
+      this.scene.start('JoinLobbyScene');
     });
 
     this.createButton(width / 2, height / 2 + 130, 'Настройки', () => {
@@ -52,31 +52,5 @@ export class MainMenuScene extends Phaser.Scene {
     button.on('pointerover', () => button.setStyle({ backgroundColor: '#333333' }));
     button.on('pointerout', () => button.setStyle({ backgroundColor: '#000000' }));
     button.on('pointerdown', callback);
-  }
-
-  showJoinGameUI() {
-    if (!this.inputField) {
-      this.inputField = document.createElement('input');
-      this.inputField.type = 'text';
-      this.inputField.placeholder = 'Введите ID комнаты';
-      this.inputField.style.position = 'absolute';
-      this.inputField.style.top = '50%';
-      this.inputField.style.left = '50%';
-      this.inputField.style.transform = 'translate(-50%, -50%)';
-      this.inputField.style.padding = '10px';
-      document.body.appendChild(this.inputField);
-
-      this.inputField.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-          this.joinGame(this.inputField.value);
-        }
-      });
-    }
-  }
-
-  joinGame(roomId: string) {
-    console.log(`Присоединение к комнате: ${roomId}`);
-    this.scene.start('MultiplayerScene', { isHost: false, roomId });
-    document.body.removeChild(this.inputField);
   }
 }

@@ -131,7 +131,7 @@ export class CreateLobbyScene extends Phaser.Scene {
     this.playerListTexts = [];
 
     const startX = this.scale.width / 2;
-    let startY = this.scale.height * 0.35;
+    const startY = this.scale.height * 0.35;
 
     this.add.text(startX, startY - 40, 'Игроки в лобби:', {
       fontSize: '32px',
