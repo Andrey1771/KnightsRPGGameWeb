@@ -70,8 +70,13 @@ export class CreateLobbyScene extends Phaser.Scene {
       return;
     }
 
+
     console.log(`Создание лобби с названием: ${lobbyName}`);
-    this.createRoom(lobbyName, 0/*Заглушка*/);
+    this.createRoom(lobbyName, 4/*Заглушка*/);
+
+  }
+
+  setLobbyScene(lobbyName: string) {
     // Удаляем inputField после создания лобби
     document.body.removeChild(this.inputField);
 
@@ -85,12 +90,13 @@ export class CreateLobbyScene extends Phaser.Scene {
       .withUrl("https://localhost:7172/gamehub") //TODO
       .build();
 
-    connection.start().then(function () {
-      // Обработчик для успешного создания комнаты
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      connection.on("RoomCreated", function(roomName) {
-      });
+    // Обработчик для успешного создания комнаты
 
+    connection.on("RoomCreated", (roomName: string) => {
+      this.setLobbyScene(roomName);
+    });
+
+    connection.start().then(() => {
       if (roomName.trim() === "") {
         alert("Room name cannot be empty!");
         return;
@@ -104,8 +110,5 @@ export class CreateLobbyScene extends Phaser.Scene {
     }).catch(function (err) {
       return console.error(err.toString());
     });
-
-
-
   }
 }
