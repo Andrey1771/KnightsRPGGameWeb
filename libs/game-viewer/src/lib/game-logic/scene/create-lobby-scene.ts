@@ -1,10 +1,14 @@
 import * as Phaser from 'phaser';
-import {HubConnectionBuilder} from "@microsoft/signalr";
+import { HubConnectionBuilder, HubConnection } from "@microsoft/signalr";
 
 export class CreateLobbyScene extends Phaser.Scene {
   private inputField!: HTMLInputElement;
   private createButton!: Phaser.GameObjects.Text;
   private backButton!: Phaser.GameObjects.Text;
+
+  private playerListTexts: Phaser.GameObjects.Text[] = []; // <--- Таблица игроков
+  private connection!: HubConnection;
+  private currentLobbyName: string = '';
 
   constructor() {
     super({ key: 'CreateLobbyScene' });
@@ -13,10 +17,8 @@ export class CreateLobbyScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    // Фон
     this.cameras.main.setBackgroundColor('#1a1a1a');
 
-    // Заголовок
     this.add.text(width / 2, height / 8, 'Создание лобби', {
       fontSize: '48px',
       fontFamily: 'Arial',
@@ -24,7 +26,6 @@ export class CreateLobbyScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Ввод имени лобби
     this.inputField = document.createElement('input');
     this.inputField.type = 'text';
     this.inputField.placeholder = 'Введите название лобби';
@@ -35,12 +36,10 @@ export class CreateLobbyScene extends Phaser.Scene {
     this.inputField.style.fontSize = '16px';
     document.body.appendChild(this.inputField);
 
-    // Кнопка "Создать лобби"
     this.createButton = this.createButtonElement(width / 2, height * 0.6, 'Создать лобби', () => {
       this.createLobby();
     });
 
-    // Кнопка "Назад в меню"
     this.backButton = this.createButtonElement(width / 2, height * 0.7, 'Назад в меню', () => {
       this.scene.start('MainMenuScene');
     });
@@ -70,45 +69,85 @@ export class CreateLobbyScene extends Phaser.Scene {
       return;
     }
 
-
     console.log(`Создание лобби с названием: ${lobbyName}`);
-    this.createRoom(lobbyName, 4/*Заглушка*/);
-
+    this.currentLobbyName = lobbyName;
+    this.createRoom(lobbyName, 4 /* заглушка */);
   }
 
   setLobbyScene(lobbyName: string) {
-    // Удаляем inputField после создания лобби
     document.body.removeChild(this.inputField);
 
-    // Переходим в сцену лобби с названием
-    this.scene.start('LobbyScene', { lobbyName });
+    // Передаём connection вместе с названием лобби
+    this.scene.start('LobbyScene', { lobbyName, connection: this.connection });
   }
 
-  /*TODO Вынести в сервис*/
   createRoom(roomName: string, maxPlayers: number) {
-    const connection = new HubConnectionBuilder()
-      .withUrl("https://localhost:7172/gamehub") //TODO
+    this.connection = new HubConnectionBuilder()
+      .withUrl("https://localhost:7172/gamehub") // TODO заменить на реальный URL
       .build();
 
-    // Обработчик для успешного создания комнаты
-
-    connection.on("RoomCreated", (roomName: string) => {
+    this.connection.on("RoomCreated", (roomName: string) => {
       this.setLobbyScene(roomName);
     });
 
-    connection.start().then(() => {
+    this.connection.on("ReceivePlayerList", (players: string[]) => {
+      console.log("Текущие игроки:", players);
+      this.updatePlayerList(players);
+    });
+
+    this.connection.on("PlayerJoined", (connectionId: string) => {
+      console.log("Новый игрок присоединился:", connectionId);
+      this.connection.invoke("RequestPlayerList", this.currentLobbyName);
+    });
+
+    this.connection.on("PlayerLeft", (connectionId: string) => {
+      console.log("Игрок покинул:", connectionId);
+      this.connection.invoke("RequestPlayerList", this.currentLobbyName);
+    });
+
+    this.connection.start().then(() => {
       if (roomName.trim() === "") {
         alert("Room name cannot be empty!");
         return;
       }
 
-      // Вызов метода CreateRoom в SignalR
-      connection.invoke("CreateRoom", roomName, maxPlayers)
-        .catch(function(err) {
-          return console.error(err.toString());
+      this.connection.invoke("CreateRoom", roomName, maxPlayers).then(() => {
+        this.connection.invoke("RequestPlayerList", roomName).catch(err => {
+          console.error(err.toString());
         });
-    }).catch(function (err) {
-      return console.error(err.toString());
+      })
+        .catch(err => {
+          console.error(err.toString());
+        });
+    }).catch(err => {
+      console.error(err.toString());
+    });
+  }
+
+  // Обновляем список игроков
+  updatePlayerList(players: string[]) {
+    // Сначала удаляем старые тексты
+    this.playerListTexts.forEach(text => text.destroy());
+    this.playerListTexts = [];
+
+    const startX = this.scale.width / 2;
+    let startY = this.scale.height * 0.35;
+
+    this.add.text(startX, startY - 40, 'Игроки в лобби:', {
+      fontSize: '32px',
+      fontFamily: 'Arial',
+      color: '#ffffff'
+    }).setOrigin(0.5);
+
+    // Создаём текст для каждого игрока
+    players.forEach((player, index) => {
+      const playerText = this.add.text(startX, startY + index * 30, `Игрок ${index + 1}: ${player}`, {
+        fontSize: '24px',
+        fontFamily: 'Arial',
+        color: '#00ff00'
+      }).setOrigin(0.5);
+
+      this.playerListTexts.push(playerText);
     });
   }
 }
