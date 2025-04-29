@@ -30,8 +30,16 @@ export class LobbyScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
+    // При старте сцены подключаем обработчик начала игры
+    this.connection.on("GameStarted", () => {
+      console.log('Игра началась!');
+      this.scene.start('MultiplayerScene', { connection: this.connection });
+    });
+
+    // При нажатии кнопки "Начать игру"
     this.startButton = this.createButtonElement(width / 2, height * 0.8, 'Начать игру', () => {
-      this.startGame();
+      this.connection.invoke("StartGame", this.lobbyName)
+        .catch(err => console.error("Ошибка запуска игры:", err));
     });
 
     // Обработчик получения списка игроков
@@ -42,6 +50,9 @@ export class LobbyScene extends Phaser.Scene {
     // После загрузки сцены сразу запрашиваем список игроков
     this.connection.invoke("RequestPlayerList", this.lobbyName)
       .catch(err => console.error("Ошибка запроса списка игроков:", err));
+
+
+
   }
 
   createButtonElement(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Text {

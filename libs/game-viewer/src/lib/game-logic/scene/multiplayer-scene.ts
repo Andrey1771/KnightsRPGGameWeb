@@ -1,30 +1,75 @@
 import * as Phaser from 'phaser';
+import { HubConnection } from '@microsoft/signalr';
 
 export class MultiplayerScene extends Phaser.Scene {
-  private isHost!: boolean;
-  private roomId!: string;
+  public connection!: HubConnection;
+  private _background!: Phaser.GameObjects.Image;
+  private _playerSprite!: Phaser.GameObjects.Sprite;
+  private _remotePlayers: Map<string, Phaser.GameObjects.Sprite> = new Map();
+  private _connectionId = '';
+  private _cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
 
   constructor() {
     super({ key: 'MultiplayerScene' });
   }
 
-  init(data: { isHost: boolean; roomId?: string }) {
-    this.isHost = data.isHost;
-    this.roomId = data.roomId || '';
+  preload() {
+    this.load.spritesheet('ball', 'assets/sprites/player/ball.png', { frameWidth: 64, frameHeight: 64 });
+    this.load.image('background', 'assets/sprites/background/background.png');
   }
 
-  create() {
+  async create() {
     const { width, height } = this.scale;
+    this._background = this.add.image(width / 2, height / 2, 'background');
+    this._background.setDisplaySize(width, height);
 
-    this.add.text(width / 2, height / 2, this.isHost ? 'Ожидание игроков...' : `Подключение к: ${this.roomId}`, {
-      fontSize: '32px',
-      fontFamily: 'Arial',
-      color: '#ffffff',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+    this._cursors = this.input.keyboard!.createCursorKeys();
 
-    setTimeout(() => {
-      this.scene.start('main');//TODO Temp
-    }, 3000);
+    // Создаем спрайт локального игрока
+    this._playerSprite = this.add.sprite(width / 2, height / 2, 'ball');
+
+    this._connectionId = await this.connection.invoke("GetConnectionId");
+
+    // Получение обновлений от сервера
+    this.connection.on("ReceivePlayerPosition", (connectionId: string, position: { x: number, y: number }) => {
+      if (connectionId === this._connectionId) {
+        this._playerSprite.setPosition(position.x, position.y);
+        return;
+      }
+
+      let remoteSprite = this._remotePlayers.get(connectionId);
+      if (!remoteSprite) {
+        remoteSprite = this.add.sprite(position.x, position.y, 'ball').setTint(0x00ff00); // Зеленый для других
+        this._remotePlayers.set(connectionId, remoteSprite);
+      } else {
+        remoteSprite.setPosition(position.x, position.y);
+      }
+    });
+
+    // Удаление игрока при выходе
+    this.connection.on("PlayerLeft", (connectionId: string) => {
+      const sprite = this._remotePlayers.get(connectionId);
+      if (sprite) {
+        sprite.destroy();
+        this._remotePlayers.delete(connectionId);
+      }
+    });
+  }
+
+  override update() {
+    if (!this._cursors || !this.connection || this.connection.state !== "Connected") return;
+
+    if (Phaser.Input.Keyboard.JustDown(this._cursors.up!)) {
+      this.connection.invoke("PerformAction", "MoveUp");
+    }
+    if (Phaser.Input.Keyboard.JustDown(this._cursors.down!)) {
+      this.connection.invoke("PerformAction", "MoveDown");
+    }
+    if (Phaser.Input.Keyboard.JustDown(this._cursors.left!)) {
+      this.connection.invoke("PerformAction", "MoveLeft");
+    }
+    if (Phaser.Input.Keyboard.JustDown(this._cursors.right!)) {
+      this.connection.invoke("PerformAction", "MoveRight");
+    }
   }
 }
