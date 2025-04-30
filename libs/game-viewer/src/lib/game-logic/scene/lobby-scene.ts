@@ -1,21 +1,23 @@
 import * as Phaser from 'phaser';
 import { HubConnection } from '@microsoft/signalr';
+import {SignalRService} from "../../services/signal-r-service/signal-r-service";
 
 export class LobbyScene extends Phaser.Scene {
   private lobbyNameText!: Phaser.GameObjects.Text;
   private startButton!: Phaser.GameObjects.Text;
   private lobbyName = '';
 
-  private connection!: HubConnection;  // <-- SignalR соединение
   private playerListTexts: Phaser.GameObjects.Text[] = [];
 
-  constructor() {
+  private _signalRService!: SignalRService;
+
+  constructor(signalRService: SignalRService) {
     super({ key: 'LobbyScene' });
+    this._signalRService = signalRService;
   }
 
   init(data: any) {
     this.lobbyName = data.lobbyName || 'Лобби';
-    this.connection = data.connection;  // <-- Получаем connection
   }
 
   create() {
@@ -31,24 +33,24 @@ export class LobbyScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // При старте сцены подключаем обработчик начала игры
-    this.connection.on("GameStarted", () => {
+    this._signalRService.connection.on("GameStarted", () => {
       console.log('Игра началась!');
-      this.scene.start('MultiplayerScene', { connection: this.connection });
+      this.scene.start('MultiplayerScene');
     });
 
     // При нажатии кнопки "Начать игру"
     this.startButton = this.createButtonElement(width / 2, height * 0.8, 'Начать игру', () => {
-      this.connection.invoke("StartGame", this.lobbyName)
+      this._signalRService.connection.invoke("StartGame", this.lobbyName)
         .catch(err => console.error("Ошибка запуска игры:", err));
     });
 
     // Обработчик получения списка игроков
-    this.connection.on("ReceivePlayerList", (players: string[]) => {
+    this._signalRService.connection.on("ReceivePlayerList", (players: string[]) => {
       this.updatePlayerList(players);
     });
 
     // После загрузки сцены сразу запрашиваем список игроков
-    this.connection.invoke("RequestPlayerList", this.lobbyName)
+    this._signalRService.connection.invoke("RequestPlayerList", this.lobbyName)
       .catch(err => console.error("Ошибка запроса списка игроков:", err));
 
 

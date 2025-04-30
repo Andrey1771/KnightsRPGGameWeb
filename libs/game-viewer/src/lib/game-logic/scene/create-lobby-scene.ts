@@ -1,17 +1,20 @@
 import * as Phaser from 'phaser';
 import { HubConnectionBuilder, HubConnection } from "@microsoft/signalr";
+import {SignalRService} from "../../services/signal-r-service/signal-r-service";
 
 export class CreateLobbyScene extends Phaser.Scene {
   private inputField!: HTMLInputElement;
   private createButton!: Phaser.GameObjects.Text;
   private backButton!: Phaser.GameObjects.Text;
 
-  private playerListTexts: Phaser.GameObjects.Text[] = []; // <--- Таблица игроков
-  private connection!: HubConnection;
+  private playerListTexts: Phaser.GameObjects.Text[] = [];
   private currentLobbyName: string = '';
 
-  constructor() {
+  private _signalRService!: SignalRService;
+
+  constructor(signalRService: SignalRService) {
     super({ key: 'CreateLobbyScene' });
+    this._signalRService = signalRService;
   }
 
   create() {
@@ -78,50 +81,33 @@ export class CreateLobbyScene extends Phaser.Scene {
     document.body.removeChild(this.inputField);
 
     // Передаём connection вместе с названием лобби
-    this.scene.start('LobbyScene', { lobbyName, connection: this.connection });
+    this.scene.start('LobbyScene', { lobbyName });
   }
 
-  createRoom(roomName: string, maxPlayers: number) {
-    this.connection = new HubConnectionBuilder()
-      .withUrl("https://localhost:7172/gamehub") // TODO заменить на реальный URL
-      .build();
+  async createRoom(roomName: string, maxPlayers: number) {
+    await this._signalRService.startConnection();
 
-    this.connection.on("RoomCreated", (roomName: string) => {
+    this._signalRService.connection.on("RoomCreated", (roomName: string) => {
       this.setLobbyScene(roomName);
     });
 
-    this.connection.on("ReceivePlayerList", (players: string[]) => {
+    this._signalRService.connection.on("ReceivePlayerList", (players: string[]) => {
       console.log("Текущие игроки:", players);
       this.updatePlayerList(players);
     });
 
-    this.connection.on("PlayerJoined", (connectionId: string) => {
+    this._signalRService.connection.on("PlayerJoined", (connectionId: string) => {
       console.log("Новый игрок присоединился:", connectionId);
-      this.connection.invoke("RequestPlayerList", this.currentLobbyName);
+      this._signalRService.connection.invoke("RequestPlayerList", this.currentLobbyName);
     });
 
-    this.connection.on("PlayerLeft", (connectionId: string) => {
+    this._signalRService.connection.on("PlayerLeft", (connectionId: string) => {
       console.log("Игрок покинул:", connectionId);
-      this.connection.invoke("RequestPlayerList", this.currentLobbyName);
+      this._signalRService.connection.invoke("RequestPlayerList", this.currentLobbyName);
     });
 
-    this.connection.start().then(() => {
-      if (roomName.trim() === "") {
-        alert("Room name cannot be empty!");
-        return;
-      }
-
-      this.connection.invoke("CreateRoom", roomName, maxPlayers).then(() => {
-        this.connection.invoke("RequestPlayerList", roomName).catch(err => {
-          console.error(err.toString());
-        });
-      })
-        .catch(err => {
-          console.error(err.toString());
-        });
-    }).catch(err => {
-      console.error(err.toString());
-    });
+    await this._signalRService.connection.invoke("CreateRoom", roomName, maxPlayers);
+    await this._signalRService.connection.invoke("RequestPlayerList", roomName);
   }
 
   // Обновляем список игроков

@@ -1,18 +1,20 @@
 import * as Phaser from 'phaser';
 import { HubConnectionBuilder, HubConnection } from '@microsoft/signalr';
+import {SignalRService} from "../../services/signal-r-service/signal-r-service";
 
 export class JoinLobbyScene extends Phaser.Scene {
   private inputField!: HTMLInputElement;
   private joinButton!: Phaser.GameObjects.Text;
   private backButton!: Phaser.GameObjects.Text;
 
-  private connection!: HubConnection;
+  private _signalRService!: SignalRService;
 
-  constructor() {
+  constructor(signalRService: SignalRService) {
     super({ key: 'JoinLobbyScene' });
+    this._signalRService = signalRService;
   }
 
-  create() {
+  async create() {
     const { width, height } = this.scale;
 
     this.cameras.main.setBackgroundColor('#1a1a1a');
@@ -34,8 +36,8 @@ export class JoinLobbyScene extends Phaser.Scene {
     this.inputField.style.fontSize = '16px';
     document.body.appendChild(this.inputField);
 
-    this.joinButton = this.createButtonElement(width / 2, height * 0.6, 'Присоединиться', () => {
-      this.joinLobby();
+    this.joinButton = this.createButtonElement(width / 2, height * 0.6, 'Присоединиться', async () => {
+      await this.joinLobby();
     });
 
     this.backButton = this.createButtonElement(width / 2, height * 0.7, 'Назад в меню', () => {
@@ -43,10 +45,7 @@ export class JoinLobbyScene extends Phaser.Scene {
       this.scene.start('MainMenuScene');
     });
 
-    // Создаём соединение заранее
-    this.connection = new HubConnectionBuilder()
-      .withUrl("https://localhost:7172/gamehub") //TODO URL
-      .build();
+    await this._signalRService.startConnection();
   }
 
   createButtonElement(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Text {
@@ -65,7 +64,7 @@ export class JoinLobbyScene extends Phaser.Scene {
     return button;
   }
 
-  joinLobby() {
+  async joinLobby() {
     const lobbyName = this.inputField.value.trim();
     if (!lobbyName) {
       alert('Введите название лобби');
@@ -73,20 +72,8 @@ export class JoinLobbyScene extends Phaser.Scene {
     }
 
     console.log(`Присоединение к лобби: ${lobbyName}`);
-
-    this.connection.start().then(() => {
-      this.connection.invoke("JoinRoom", lobbyName)
-        .then(() => {
-          document.body.removeChild(this.inputField);
-          this.scene.start('LobbyScene', { lobbyName, connection: this.connection });
-        })
-        .catch((err) => {
-          console.error(err.toString());
-          alert('Ошибка подключения к лобби.');
-        });
-    }).catch(err => {
-      console.error('Ошибка соединения с сервером:', err);
-      alert('Не удалось подключиться к серверу.');
-    });
+    await this._signalRService.connection.invoke("JoinRoom", lobbyName)
+    document.body.removeChild(this.inputField);
+    this.scene.start('LobbyScene', { lobbyName });
   }
 }
