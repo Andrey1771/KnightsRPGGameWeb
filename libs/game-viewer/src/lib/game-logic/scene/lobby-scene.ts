@@ -1,5 +1,4 @@
 import * as Phaser from 'phaser';
-import { HubConnection } from '@microsoft/signalr';
 import {SignalRService} from "../../services/signal-r-service/signal-r-service";
 
 export class LobbyScene extends Phaser.Scene {
