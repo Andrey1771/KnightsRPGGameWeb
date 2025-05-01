@@ -2,6 +2,17 @@ import * as Phaser from 'phaser';
 import { HubConnection } from '@microsoft/signalr';
 import {SignalRService} from "../../services/signal-r-service/signal-r-service";
 
+enum PlayerInputAction {
+  MoveUp = 'MoveUp',
+  MoveDown = 'MoveDown',
+  MoveLeft = 'MoveLeft',
+  MoveRight = 'MoveRight',
+  StopMoveUp = 'StopMoveUp',
+  StopMoveDown = 'StopMoveDown',
+  StopMoveLeft = 'StopMoveLeft',
+  StopMoveRight = 'StopMoveRight'
+}
+
 export class MultiplayerScene extends Phaser.Scene {
   private _background!: Phaser.GameObjects.Image;
   private _playerSprite!: Phaser.GameObjects.Sprite;
@@ -62,17 +73,48 @@ export class MultiplayerScene extends Phaser.Scene {
   override update() {
     if (!this._cursors || !this._signalRService.connection || this._signalRService.connection.state !== "Connected") return;
 
-    if (Phaser.Input.Keyboard.JustDown(this._cursors.up!)) {
-      this._signalRService.connection.invoke("PerformAction", "MoveUp");
-    }
-    if (Phaser.Input.Keyboard.JustDown(this._cursors.down!)) {
-      this._signalRService.connection.invoke("PerformAction", "MoveDown");
-    }
-    if (Phaser.Input.Keyboard.JustDown(this._cursors.left!)) {
-      this._signalRService.connection.invoke("PerformAction", "MoveLeft");
-    }
-    if (Phaser.Input.Keyboard.JustDown(this._cursors.right!)) {
-      this._signalRService.connection.invoke("PerformAction", "MoveRight");
-    }
+    const keysDown = new Set<string>();
+
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      if (keysDown.has(event.code)) return; // уже нажата — игнорируем
+      keysDown.add(event.code);
+
+      switch (event.code) {
+        case 'ArrowUp':
+          this._signalRService.connection.invoke("PerformAction", PlayerInputAction.MoveUp);
+          break;
+        case 'ArrowDown':
+          this._signalRService.connection.invoke("PerformAction", PlayerInputAction.MoveDown);
+          break;
+        case 'ArrowLeft':
+          this._signalRService.connection.invoke("PerformAction", PlayerInputAction.MoveLeft);
+          break;
+        case 'ArrowRight':
+          this._signalRService.connection.invoke("PerformAction", PlayerInputAction.MoveRight);
+          break;
+      }
+    });
+
+    this.input.keyboard?.on('keyup', (event: KeyboardEvent) => {
+      if (!keysDown.has(event.code)) return;
+      keysDown.delete(event.code);
+
+      switch (event.code) {
+        case 'ArrowUp':
+          this._signalRService.connection.invoke("PerformAction", PlayerInputAction.StopMoveUp);
+          break;
+        case 'ArrowDown':
+          this._signalRService.connection.invoke("PerformAction", PlayerInputAction.StopMoveDown);
+          break;
+        case 'ArrowLeft':
+          this._signalRService.connection.invoke("PerformAction", PlayerInputAction.StopMoveLeft);
+          break;
+        case 'ArrowRight':
+          this._signalRService.connection.invoke("PerformAction", PlayerInputAction.StopMoveRight);
+          break;
+      }
+    });
+
+
   }
 }
