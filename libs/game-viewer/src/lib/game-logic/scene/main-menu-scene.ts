@@ -8,7 +8,7 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('menuBg', 'assets/sprites/background/menu_background.png');
+    this.load.image('menuBg', 'assets/sprites/background/mainMenuBackground.jpg');
   }
 
   create() {

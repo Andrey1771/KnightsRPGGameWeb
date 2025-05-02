@@ -13,6 +13,13 @@ enum PlayerInputAction {
   StopMoveRight = 'StopMoveRight'
 }
 
+interface PlayerPositionDto {
+  x: number;
+  y: number;
+}
+
+type PositionMap = Record<string, PlayerPositionDto>;
+
 export class MultiplayerScene extends Phaser.Scene {
   private _background!: Phaser.GameObjects.Image;
   private _playerSprite!: Phaser.GameObjects.Sprite;
@@ -20,11 +27,17 @@ export class MultiplayerScene extends Phaser.Scene {
   private _connectionId = '';
   private _cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
 
+  private _initialPositions!: PositionMap;
+
   private _signalRService!: SignalRService;
 
   constructor(signalRService: SignalRService) {
     super({ key: 'MultiplayerScene' });
     this._signalRService = signalRService;
+  }
+
+  init(data: { initialPositions: PositionMap }) {
+    this._initialPositions = data.initialPositions;
   }
 
   preload() {
@@ -43,6 +56,19 @@ export class MultiplayerScene extends Phaser.Scene {
     this._playerSprite = this.add.sprite(width / 2, height / 2, 'ball');
 
     this._connectionId = await this._signalRService.connection.invoke("GetConnectionId");
+
+
+    Object.entries(this._initialPositions).forEach(([connectionId, pos]) => {
+      if (connectionId === this._connectionId) {
+        // Устанавливаем позицию нашего игрока
+        this._playerSprite.setPosition(pos.x, pos.y);
+      } else {
+        // Добавляем других игроков
+        const remote = this.add.sprite(pos.x, pos.y, 'ball').setTint(0x00ff00);
+        this._remotePlayers.set(connectionId, remote);
+      }
+    });
+
 
     // Получение обновлений от сервера
     this._signalRService.connection.on("ReceivePlayerPosition", (connectionId: string, position: { x: number, y: number }) => {

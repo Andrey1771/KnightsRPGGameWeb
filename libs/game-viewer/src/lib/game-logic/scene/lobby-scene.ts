@@ -32,9 +32,9 @@ export class LobbyScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // При старте сцены подключаем обработчик начала игры
-    this._signalRService.connection.on("GameStarted", () => {
+    this._signalRService.connection.on("GameStarted", (initialPositions) => {
       console.log('Игра началась!');
-      this.scene.start('MultiplayerScene');
+      this.scene.start('MultiplayerScene', { initialPositions });
     });
 
     // При нажатии кнопки "Начать игру"
