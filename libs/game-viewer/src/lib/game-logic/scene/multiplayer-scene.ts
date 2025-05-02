@@ -86,6 +86,32 @@ export class MultiplayerScene extends Phaser.Scene {
       }
     });
 
+    this._signalRService.connection.on("ReceiveShot", (connectionId: string, startPosition: { x: number, y: number }) => {
+      const bullet = this.add.circle(startPosition.x, startPosition.y, 4, 0xffff00);
+      this.physics.add.existing(bullet);
+
+      const speed = 400;
+      (bullet.body as Phaser.Physics.Arcade.Body).setVelocity(0, -speed);
+
+      // Удаляем пулю через 2 секунды
+      this.time.delayedCall(2000, () => bullet.destroy());
+    });
+
+    this._signalRService.connection.on("BulletFired", (connectionId: string, startPosition: { x: number, y: number }) => {
+      const bullet = this.add.rectangle(startPosition.x, startPosition.y, 5, 10, 0xffffff);
+      this.physics.add.existing(bullet);
+      const body = bullet.body as Phaser.Physics.Arcade.Body;
+      body.setVelocityY(-300); // летит вверх
+
+      // Можно добавить удаление после выхода за экран
+      this.time.delayedCall(3000, () => bullet.destroy());
+    });
+
+    this._signalRService.connection.on("ReceiveHit", () => {
+      this._playerSprite.setTint(0xff0000);
+      this.time.delayedCall(500, () => this._playerSprite.clearTint());
+    });
+
     // Удаление игрока при выходе
     this._signalRService.connection.on("PlayerLeft", (connectionId: string) => {
       const sprite = this._remotePlayers.get(connectionId);
@@ -119,6 +145,10 @@ export class MultiplayerScene extends Phaser.Scene {
           this._signalRService.connection.invoke("PerformAction", PlayerInputAction.MoveRight);
           break;
       }
+    });
+
+    this.input.keyboard?.on('keydown-SPACE', () => {
+      this._signalRService.connection.invoke("Shoot");
     });
 
     this.input.keyboard?.on('keyup', (event: KeyboardEvent) => {
