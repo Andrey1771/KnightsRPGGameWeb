@@ -28,6 +28,9 @@ export class MultiplayerScene extends Phaser.Scene {
   private _cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
 
   private _initialPositions!: PositionMap;
+  private _initialBotPositions!: PositionMap;
+
+  private _bots: Map<string, Phaser.GameObjects.Sprite> = new Map();
 
   private _signalRService!: SignalRService;
 
@@ -36,8 +39,9 @@ export class MultiplayerScene extends Phaser.Scene {
     this._signalRService = signalRService;
   }
 
-  init(data: { initialPositions: PositionMap }) {
+  init(data: { initialPositions: PositionMap, bots: PositionMap }) {
     this._initialPositions = data.initialPositions;
+    this._initialBotPositions = data.bots;
   }
 
   preload() {
@@ -69,6 +73,23 @@ export class MultiplayerScene extends Phaser.Scene {
       }
     });
 
+    // Инициализация ботов
+    Object.entries(this._initialBotPositions).forEach(([botId, pos]) => {
+      const botSprite = this.add.sprite(pos.x, pos.y, 'bot');
+      this._bots.set(botId, botSprite);
+    });
+
+
+    this._signalRService.connection.on("ReceiveBotList", (bots: { [botId: string]: { x: number, y: number } }) => {
+      Object.entries(bots).forEach(([botId, pos]) => {
+        this.scene.get('MultiplayerScene')?.events.emit('spawn-bot', botId, pos);
+      });
+    });
+
+    this.events.on('spawn-bot', (botId: string, pos: { x: number, y: number }) => {
+      const botSprite = this.add.sprite(pos.x, pos.y, 'bot'); // 'bot' должен быть загружен как текстура
+      this._bots.set(botId, botSprite);
+    });
 
     // Получение обновлений от сервера
     this._signalRService.connection.on("ReceivePlayerPosition", (connectionId: string, position: { x: number, y: number }) => {
