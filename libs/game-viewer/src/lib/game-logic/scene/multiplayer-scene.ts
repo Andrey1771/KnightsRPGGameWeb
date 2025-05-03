@@ -182,6 +182,60 @@ export class MultiplayerScene extends Phaser.Scene {
       }
     });
 
+    // Вражеские пули
+    const _enemyBullets: Map<string, Phaser.GameObjects.Rectangle> = new Map();
+
+    this._signalRService.connection.on("SpawnEnemyBullet", (bullet) => {
+      const sprite = this.add.rectangle(bullet.x, bullet.y, 5, 10, 0xff0000); // красная пуля
+      this.physics.add.existing(sprite);
+      _enemyBullets.set(bullet.id, sprite);
+    });
+
+    this._signalRService.connection.on("UpdateEnemyBullet", (bullet) => {
+      const sprite = _enemyBullets.get(bullet.id);
+      if (sprite) {
+        sprite.setPosition(bullet.x, bullet.y);
+      }
+    });
+
+    this._signalRService.connection.on("RemoveEnemyBullet", (bulletId) => {
+      const sprite = _enemyBullets.get(bulletId);
+      if (sprite) {
+        sprite.destroy();
+        _enemyBullets.delete(bulletId);
+      }
+    });
+
+// Урон игроку
+    this._signalRService.connection.on("PlayerHit", (playerId: string, health: number) => {
+      if (playerId === this._connectionId) {
+        this._playerSprite.setTint(0xff0000);
+        this.time.delayedCall(500, () => this._playerSprite.clearTint());
+        // Здесь можно обновить здоровье в UI
+        console.log(`You were hit! Health: ${health}`);
+      } else {
+        const remote = this._remotePlayers.get(playerId);
+        if (remote) {
+          remote.setTint(0xff0000);
+          this.time.delayedCall(500, () => remote.clearTint());
+        }
+      }
+    });
+
+    this._signalRService.connection.on("PlayerDied", (playerId: string) => {
+      if (playerId === this._connectionId) {
+        this._playerSprite.setVisible(false);
+        // Можно показать экран "Вы умерли"
+        console.log("You died!");
+      } else {
+        const remote = this._remotePlayers.get(playerId);
+        if (remote) {
+          remote.destroy();
+          this._remotePlayers.delete(playerId);
+        }
+      }
+    });
+
   }
 
   override update() {
