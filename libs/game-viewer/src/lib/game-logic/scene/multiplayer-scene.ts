@@ -236,6 +236,20 @@ export class MultiplayerScene extends Phaser.Scene {
       }
     });
 
+    this._signalRService.connection.on("ReceiveBotPosition", (botId: string, position: { x: number, y: number }) => {
+      const bot = this._bots.get(botId);
+      if (bot) {
+        bot.setPosition(position.x, position.y);
+
+        // Уничтожение, если бот вышел за пределы экрана (например, по оси Y)
+        const screenHeight = this.scale.height;
+        if (position.y > screenHeight) {
+          bot.destroy();
+          this._bots.delete(botId);
+        }
+      }
+    });
+
   }
 
   override update() {
