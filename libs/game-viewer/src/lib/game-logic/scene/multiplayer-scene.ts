@@ -34,6 +34,8 @@ export class MultiplayerScene extends Phaser.Scene {
 
   private _signalRService!: SignalRService;
 
+  private _bullets: Map<string, Phaser.GameObjects.Rectangle> = new Map();
+
   constructor(signalRService: SignalRService) {
     super({ key: 'MultiplayerScene' });
     this._signalRService = signalRService;
@@ -124,13 +126,42 @@ export class MultiplayerScene extends Phaser.Scene {
       const body = bullet.body as Phaser.Physics.Arcade.Body;
       body.setVelocityY(-300); // летит вверх
 
-      // Можно добавить удаление после выхода за экран
-      this.time.delayedCall(3000, () => bullet.destroy());
+      this._bullets.set(connectionId, bullet);
+
+      // Можно добавить удаление через таймер как fallback
+      this.time.delayedCall(3000, () => {
+        bullet.destroy();
+        this._bullets.delete(connectionId);
+      });
     });
 
     this._signalRService.connection.on("ReceiveHit", () => {
       this._playerSprite.setTint(0xff0000);
       this.time.delayedCall(500, () => this._playerSprite.clearTint());
+    });
+
+    this._signalRService.connection.on("ReceiveBotHit", (botId, health) => {
+      const bot = this._bots.get(botId);
+      if (bot) {
+        bot.setTint(0xff0000);
+        // можно добавить UI над ботом, отображающий здоровье
+      }
+    });
+
+    this._signalRService.connection.on("BotDied", (botId) => {
+      const bot = this._bots.get(botId);
+      if (bot) {
+        bot.destroy();
+        this._bots.delete(botId);
+      }
+    });
+
+    this._signalRService.connection.on("BulletHit", (connectionId: string) => {
+      const bullet = this._bullets.get(connectionId);
+      if (bullet) {
+        bullet.destroy();
+        this._bullets.delete(connectionId);
+      }
     });
 
     // Удаление игрока при выходе
