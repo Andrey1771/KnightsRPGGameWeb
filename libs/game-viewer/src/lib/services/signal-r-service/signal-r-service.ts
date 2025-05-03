@@ -9,7 +9,9 @@ export class SignalRService {
 
   public startConnection(): Promise<void> {
     this.hubConnection = new signalR.HubConnectionBuilder()
-      .withUrl("https://localhost:7172/gamehub") // TODO заменить на реальный URL
+      .withUrl("https://localhost:7172/gamehub", {
+        transport: signalR.HttpTransportType.WebSockets
+      }) // TODO заменить на реальный URL
       .withAutomaticReconnect()
       .build();
 

@@ -120,21 +120,6 @@ export class MultiplayerScene extends Phaser.Scene {
       this.time.delayedCall(2000, () => bullet.destroy());
     });
 
-    this._signalRService.connection.on("BulletFired", (connectionId: string, startPosition: { x: number, y: number }) => {
-      const bullet = this.add.rectangle(startPosition.x, startPosition.y, 5, 10, 0xffffff);
-      this.physics.add.existing(bullet);
-      const body = bullet.body as Phaser.Physics.Arcade.Body;
-      body.setVelocityY(-300); // летит вверх
-
-      this._bullets.set(connectionId, bullet);
-
-      // Можно добавить удаление через таймер как fallback
-      this.time.delayedCall(3000, () => {
-        bullet.destroy();
-        this._bullets.delete(connectionId);
-      });
-    });
-
     this._signalRService.connection.on("ReceiveHit", () => {
       this._playerSprite.setTint(0xff0000);
       this.time.delayedCall(500, () => this._playerSprite.clearTint());
@@ -143,7 +128,7 @@ export class MultiplayerScene extends Phaser.Scene {
     this._signalRService.connection.on("ReceiveBotHit", (botId, health) => {
       const bot = this._bots.get(botId);
       if (bot) {
-        bot.setTint(0xff0000);
+        //bot.setTint(0xff0000);
         // можно добавить UI над ботом, отображающий здоровье
       }
     });
@@ -172,6 +157,31 @@ export class MultiplayerScene extends Phaser.Scene {
         this._remotePlayers.delete(connectionId);
       }
     });
+
+    // Новая пуля
+    this._signalRService.connection.on("SpawnBullet", (bullet) => {
+      const sprite = this.add.rectangle(bullet.x, bullet.y, 5, 10, 0xffffff);
+      this.physics.add.existing(sprite);
+      this._bullets.set(bullet.id, sprite);
+    });
+
+    // Обновление позиции пули
+    this._signalRService.connection.on("UpdateBullet", (bullet) => {
+      const sprite = this._bullets.get(bullet.id);
+      if (sprite) {
+        sprite.setPosition(bullet.x, bullet.y);
+      }
+    });
+
+    // Пуля должна исчезнуть
+    this._signalRService.connection.on("RemoveBullet", (bulletId) => {
+      const sprite = this._bullets.get(bulletId);
+      if (sprite) {
+        sprite.destroy();
+        this._bullets.delete(bulletId);
+      }
+    });
+
   }
 
   override update() {
