@@ -13,9 +13,11 @@ enum PlayerInputAction {
   StopMoveRight = 'StopMoveRight'
 }
 
+//TODO State
 interface PlayerPositionDto {
   x: number;
   y: number;
+  health: number; // ← добавлено
 }
 
 type PositionMap = Record<string, PlayerPositionDto>;
@@ -35,6 +37,9 @@ export class MultiplayerScene extends Phaser.Scene {
   private _signalRService!: SignalRService;
 
   private _bullets: Map<string, Phaser.GameObjects.Rectangle> = new Map();
+
+  private _playerHealthText!: Phaser.GameObjects.Text;
+  private _healthTexts: Map<string, Phaser.GameObjects.Text> = new Map();
 
   constructor(signalRService: SignalRService) {
     super({ key: 'MultiplayerScene' });
@@ -60,6 +65,13 @@ export class MultiplayerScene extends Phaser.Scene {
 
     // Создаем спрайт локального игрока
     this._playerSprite = this.add.sprite(width / 2, height / 2, 'ball');
+
+    this._playerHealthText = this.add.text(16, 16, 'HP: 100', {
+      font: '20px Arial',
+      color: '#ffffff',
+      backgroundColor: '#000000',
+      padding: { x: 6, y: 4 },
+    }).setScrollFactor(0); // UI фиксируется на экране
 
     this._connectionId = await this._signalRService.connection.invoke("GetConnectionId");
 
@@ -94,11 +106,14 @@ export class MultiplayerScene extends Phaser.Scene {
     });
 
     // Получение обновлений от сервера
-    this._signalRService.connection.on("ReceivePlayerPosition", (connectionId: string, position: { x: number, y: number }) => {
+    this._signalRService.connection.on("ReceivePlayerPosition", (connectionId: string, position: { x: number, y: number, health: number }) => {
       if (connectionId === this._connectionId) {
         this._playerSprite.setPosition(position.x, position.y);
+        this._playerHealthText.setText(`HP: ${position.health}`);
+
         return;
       }
+
 
       let remoteSprite = this._remotePlayers.get(connectionId);
       if (!remoteSprite) {
@@ -106,6 +121,20 @@ export class MultiplayerScene extends Phaser.Scene {
         this._remotePlayers.set(connectionId, remoteSprite);
       } else {
         remoteSprite.setPosition(position.x, position.y);
+      }
+
+      let healthText = this._healthTexts.get(connectionId);
+      if (!healthText) {
+        healthText = this.add.text(position.x, position.y - 50, `HP: ${position.health}`, {
+          font: '16px Arial',
+          color: '#ffffff',
+          backgroundColor: '#000000',
+          padding: { x: 4, y: 2 },
+        });
+        this._healthTexts.set(connectionId, healthText);
+      } else {
+        healthText.setText(`HP: ${position.health}`);
+        healthText.setPosition(position.x - healthText.width / 2, position.y - 50);
       }
     });
 
