@@ -98,16 +98,16 @@ export class CreateLobbyScene extends Phaser.Scene {
 
     this._signalRService.connection.on("PlayerJoined", (connectionId: string) => {
       console.log("Новый игрок присоединился:", connectionId);
-      this._signalRService.connection.invoke("RequestPlayerList", this.currentLobbyName);
+      this._signalRService.connection.invoke("UpdatePlayerList", this.currentLobbyName);
     });
 
     this._signalRService.connection.on("PlayerLeft", (connectionId: string) => {
       console.log("Игрок покинул:", connectionId);
-      this._signalRService.connection.invoke("RequestPlayerList", this.currentLobbyName);
+      this._signalRService.connection.invoke("UpdatePlayerList", this.currentLobbyName);
     });
 
     await this._signalRService.connection.invoke("CreateRoom", roomName, maxPlayers);
-    await this._signalRService.connection.invoke("RequestPlayerList", roomName);
+    await this._signalRService.connection.invoke("UpdatePlayerList", roomName);
   }
 
   // Обновляем список игроков

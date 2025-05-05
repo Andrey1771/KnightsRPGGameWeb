@@ -49,7 +49,7 @@ export class LobbyScene extends Phaser.Scene {
     });
 
     // После загрузки сцены сразу запрашиваем список игроков
-    this._signalRService.connection.invoke("RequestPlayerList", this.lobbyName)
+    this._signalRService.connection.invoke("UpdatePlayerList", this.lobbyName)
       .catch(err => console.error("Ошибка запроса списка игроков:", err));
 
 
