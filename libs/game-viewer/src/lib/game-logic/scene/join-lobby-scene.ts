@@ -1,13 +1,17 @@
 import * as Phaser from 'phaser';
-import { HubConnectionBuilder, HubConnection } from '@microsoft/signalr';
-import {SignalRService} from "../../services/signal-r-service/signal-r-service";
+import { SignalRService } from "../../services/signal-r-service/signal-r-service";
+import { PhaserInputText } from '../../phaser-ui/phaser-input-text';
 
 export class JoinLobbyScene extends Phaser.Scene {
-  private inputField!: HTMLInputElement;
+  private inputText!: Phaser.GameObjects.Text;
+  private lobbyName = '';
+
   private joinButton!: Phaser.GameObjects.Text;
   private backButton!: Phaser.GameObjects.Text;
 
   private _signalRService!: SignalRService;
+
+  private inputField!: PhaserInputText;
 
   constructor(signalRService: SignalRService) {
     super({ key: 'JoinLobbyScene' });
@@ -19,29 +23,21 @@ export class JoinLobbyScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#1a1a1a');
 
-    this.add.text(width / 2, height / 8, 'Присоединиться к лобби', {
-      fontSize: '48px',
-      fontFamily: 'Arial',
-      color: '#ffffff',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+    this.inputField = new PhaserInputText(this, width / 2, height / 3, 'Введите название лобби');
 
-    this.inputField = document.createElement('input');
-    this.inputField.type = 'text';
-    this.inputField.placeholder = 'Введите название лобби';
-    this.inputField.style.position = 'absolute';
-    this.inputField.style.top = `${height / 3}px`;
-    this.inputField.style.left = `${width / 2 - 150}px`;
-    this.inputField.style.padding = '10px';
-    this.inputField.style.fontSize = '16px';
-    document.body.appendChild(this.inputField);
+    this.createButtonElement(width / 2, height * 0.6, 'Присоединиться', async () => {
+      const lobbyName = this.inputField.getValue();
+      if (!lobbyName) {
+        alert('Введите название лобби');
+        return;
+      }
 
-    this.joinButton = this.createButtonElement(width / 2, height * 0.6, 'Присоединиться', async () => {
-      await this.joinLobby();
+      await this._signalRService.connection.invoke("JoinRoom", lobbyName);
+      this.scene.start('LobbyScene', { lobbyName });
     });
 
-    this.backButton = this.createButtonElement(width / 2, height * 0.7, 'Назад в меню', () => {
-      document.body.removeChild(this.inputField);
+    this.createButtonElement(width / 2, height * 0.7, 'Назад в меню', () => {
+      this.inputField.destroy();
       this.scene.start('MainMenuScene');
     });
 
@@ -65,15 +61,14 @@ export class JoinLobbyScene extends Phaser.Scene {
   }
 
   async joinLobby() {
-    const lobbyName = this.inputField.value.trim();
+    const lobbyName = this.lobbyName.trim();
     if (!lobbyName) {
-      alert('Введите название лобби');
+      console.warn('Введите название лобби');
       return;
     }
 
     console.log(`Присоединение к лобби: ${lobbyName}`);
-    await this._signalRService.connection.invoke("JoinRoom", lobbyName)
-    document.body.removeChild(this.inputField);
+    await this._signalRService.connection.invoke("JoinRoom", lobbyName);
     this.scene.start('LobbyScene', { lobbyName });
   }
 }

@@ -1,14 +1,14 @@
 import * as Phaser from 'phaser';
-import { HubConnectionBuilder, HubConnection } from "@microsoft/signalr";
-import {SignalRService} from "../../services/signal-r-service/signal-r-service";
+import { SignalRService } from "../../services/signal-r-service/signal-r-service";
+import { PhaserInputText } from '../../phaser-ui/phaser-input-text';
 
 export class CreateLobbyScene extends Phaser.Scene {
-  private inputField!: HTMLInputElement;
+  private inputField!: PhaserInputText;
   private createButton!: Phaser.GameObjects.Text;
   private backButton!: Phaser.GameObjects.Text;
 
   private playerListTexts: Phaser.GameObjects.Text[] = [];
-  private currentLobbyName: string = '';
+  private currentLobbyName = '';
 
   private _signalRService!: SignalRService;
 
@@ -29,21 +29,14 @@ export class CreateLobbyScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    this.inputField = document.createElement('input');
-    this.inputField.type = 'text';
-    this.inputField.placeholder = 'Введите название лобби';
-    this.inputField.style.position = 'absolute';
-    this.inputField.style.top = `${height / 4}px`;
-    this.inputField.style.left = `${width / 2 - 150}px`;
-    this.inputField.style.padding = '10px';
-    this.inputField.style.fontSize = '16px';
-    document.body.appendChild(this.inputField);
+    this.inputField = new PhaserInputText(this, width / 2, height / 4, 'Введите название лобби');
 
     this.createButton = this.createButtonElement(width / 2, height * 0.6, 'Создать лобби', () => {
       this.createLobby();
     });
 
     this.backButton = this.createButtonElement(width / 2, height * 0.7, 'Назад в меню', () => {
+      this.inputField.destroy();
       this.scene.start('MainMenuScene');
     });
   }
@@ -65,7 +58,7 @@ export class CreateLobbyScene extends Phaser.Scene {
   }
 
   createLobby() {
-    const lobbyName = this.inputField.value.trim();
+    const lobbyName = this.inputField.getValue();
 
     if (!lobbyName) {
       alert('Введите название лобби');
@@ -78,9 +71,7 @@ export class CreateLobbyScene extends Phaser.Scene {
   }
 
   setLobbyScene(lobbyName: string) {
-    document.body.removeChild(this.inputField);
-
-    // Передаём connection вместе с названием лобби
+    this.inputField.destroy();
     this.scene.start('LobbyScene', { lobbyName });
   }
 
@@ -110,9 +101,7 @@ export class CreateLobbyScene extends Phaser.Scene {
     await this._signalRService.connection.invoke("UpdatePlayerList", roomName);
   }
 
-  // Обновляем список игроков
   updatePlayerList(players: string[]) {
-    // Сначала удаляем старые тексты
     this.playerListTexts.forEach(text => text.destroy());
     this.playerListTexts = [];
 
@@ -125,7 +114,6 @@ export class CreateLobbyScene extends Phaser.Scene {
       color: '#ffffff'
     }).setOrigin(0.5);
 
-    // Создаём текст для каждого игрока
     players.forEach((player, index) => {
       const playerText = this.add.text(startX, startY + index * 30, `Игрок ${index + 1}: ${player}`, {
         fontSize: '24px',
