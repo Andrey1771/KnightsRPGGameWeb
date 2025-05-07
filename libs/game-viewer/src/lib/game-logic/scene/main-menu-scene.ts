@@ -13,9 +13,17 @@ export class MainMenuScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    const canvas = this.sys.game.canvas;
+    const realWidth = canvas.width;
+    const realHeight = canvas.height;
 
-    this.add.image(width / 2, height / 2, 'menuBg').setDisplaySize(width, height);
+    // Центр фона по центру canvas
+    this.add.image(realWidth / 2, realHeight / 2, 'menuBg')
+      .setDisplaySize(realWidth, realHeight)
+      .setScrollFactor(0)
+      .setDepth(-1);
 
+    // Всё остальное — позиционируй по обычному игровому "виртуальному" размеру
     this.add.text(width / 2, height / 4, 'Knights Game', {
       fontSize: '48px',
       fontFamily: 'Arial',
@@ -23,6 +31,7 @@ export class MainMenuScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
+    // кнопки
     this.createButton(width / 2, height / 2 - 50, 'Начать игру', () => {
       this.scene.start('main');
     });
@@ -37,6 +46,19 @@ export class MainMenuScene extends Phaser.Scene {
 
     this.createButton(width / 2, height / 2 + 130, 'Настройки', () => {
       this.scene.start('SettingsScene');
+    });
+
+    //TODO Полный экран
+    const fullscreenButton = this.add.text(10, 10, '🖵 Fullscreen', {
+      fontSize: '24px'
+    }).setInteractive();
+
+    fullscreenButton.on('pointerup', () => {
+      if (!this.scale.isFullscreen) {
+        this.scale.startFullscreen();
+      } else {
+        this.scale.stopFullscreen();
+      }
     });
   }
 

@@ -20,20 +20,26 @@ export class GameManagerService {
   }
 
   private initConfiguration(): void {
+    const targetWidth = 640;
+    const targetHeight = 960;
+
     this.config = {
       type: Phaser.WEBGL,
-      height: '100%',
-      width: '100%',
+      backgroundColor: '#000000',
+      width: window.innerWidth,
+      height: window.innerHeight,
       scene: [MainMenuScene, KnightsGameScene, JoinLobbyScene, SettingsScene],
       scale: {
-        mode: Phaser.Scale.ScaleModes.RESIZE,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
+        mode: Phaser.Scale.FIT, // сохраняет пропорции и масштабирует
+        autoCenter: Phaser.Scale.CENTER_BOTH, // центрирует игру
+        width: targetWidth,
+        height: targetHeight
       },
       parent: 'gameContainer',
       physics: {
         default: 'arcade',
         arcade: {
-          gravity: { /*y: 100*/ },
+          gravity: { },
         },
       },
     };

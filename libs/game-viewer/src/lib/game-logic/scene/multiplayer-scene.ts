@@ -41,6 +41,8 @@ export class MultiplayerScene extends Phaser.Scene {
   private _playerHealthText!: Phaser.GameObjects.Text;
   private _healthTexts: Map<string, Phaser.GameObjects.Text> = new Map();
 
+  private _scoreText!: Phaser.GameObjects.Text;
+
   constructor(signalRService: SignalRService) {
     super({ key: 'MultiplayerScene' });
     this._signalRService = signalRService;
@@ -72,6 +74,16 @@ export class MultiplayerScene extends Phaser.Scene {
       backgroundColor: '#000000',
       padding: { x: 6, y: 4 },
     }).setScrollFactor(0); // UI фиксируется на экране
+
+
+    this._scoreText = this.add.text(this.scale.width - 150, 16, 'Score: 0', {
+      font: '20px Arial',
+      color: '#ffffff',
+      backgroundColor: '#000000',
+      padding: { x: 6, y: 4 },
+    })
+      .setScrollFactor(0)
+      .setOrigin(1, 0);
 
     this._connectionId = await this._signalRService.connection.invoke("GetConnectionId");
 
@@ -279,6 +291,11 @@ export class MultiplayerScene extends Phaser.Scene {
       }
     });
 
+    this._signalRService.connection.on("UpdateScore", (score: number) => {
+      if (this._scoreText) {
+        this._scoreText.setText(`Score: ${score.toFixed(0)}`);
+      }
+    });
   }
 
   override update() {
