@@ -33,7 +33,6 @@ export class JoinLobbyScene extends Phaser.Scene {
       }
 
       await this._signalRService.connection.invoke("JoinRoom", lobbyName);
-      this.scene.start('LobbyScene', { lobbyName });
     });
 
     this.createButtonElement(width / 2, height * 0.7, 'Назад в меню', () => {
@@ -42,6 +41,15 @@ export class JoinLobbyScene extends Phaser.Scene {
     });
 
     await this._signalRService.startConnection();
+
+    this._signalRService.connection.on("Error", (errorMessage: string) => {
+      alert(`Ошибка: ${errorMessage}`);
+    });
+
+    this._signalRService.connection.on("PlayerJoined", (playerId: string) => {
+      const lobbyName = this.inputField.getValue();
+      this.scene.start('LobbyScene', { lobbyName });
+    });
   }
 
   createButtonElement(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Text {
