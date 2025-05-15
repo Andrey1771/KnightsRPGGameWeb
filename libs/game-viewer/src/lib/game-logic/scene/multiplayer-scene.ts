@@ -20,6 +20,14 @@ interface PlayerPositionDto {
   health: number; // ← добавлено
 }
 
+enum BulletType
+{
+  Straight,
+  ZigZag,
+  Arc,
+  Explosive
+}
+
 type PositionMap = Record<string, PlayerPositionDto>;
 
 export class MultiplayerScene extends Phaser.Scene {
@@ -54,8 +62,12 @@ export class MultiplayerScene extends Phaser.Scene {
   }
 
   preload() {
+    this.load.spritesheet('player', 'assets/sprites/player/player_0.jpg', { frameWidth: 256, frameHeight: 256 });
+    this.load.spritesheet('enemy_0', 'assets/sprites/enemies/enemy_0.png', { frameWidth: 256, frameHeight: 256 });
+    this.load.spritesheet('enemy_1', 'assets/sprites/enemies/enemy_1.png', { frameWidth: 256, frameHeight: 256 });
     this.load.spritesheet('ball', 'assets/sprites/player/ball.png', { frameWidth: 64, frameHeight: 64 });
     this.load.image('background', 'assets/sprites/background/background.png');
+
   }
 
   async create() {
@@ -106,14 +118,17 @@ export class MultiplayerScene extends Phaser.Scene {
     });
 
 
-    this._signalRService.connection.on("ReceiveBotList", (bots: { [botId: string]: { x: number, y: number } }) => {
+    this._signalRService.connection.on("ReceiveBotList", (bots: { [botId: string]: { x: number, y: number, shootingStyle: number } }) => {
       Object.entries(bots).forEach(([botId, pos]) => {
         this.scene.get('MultiplayerScene')?.events.emit('spawn-bot', botId, pos);
       });
     });
 
-    this.events.on('spawn-bot', (botId: string, pos: { x: number, y: number }) => {
-      const botSprite = this.add.sprite(pos.x, pos.y, 'bot'); // 'bot' должен быть загружен как текстура
+    this.events.on('spawn-bot', (botId: string, pos: { x: number, y: number, shootingStyle: number }) => {
+
+      const botSprite = this.add.sprite(pos.x, pos.y, 'enemy_0').setRotation(3.14159/*180 градусов*/).setScale(0.25, 0.25); // 'bot' должен быть загружен как текстура
+      shootingStyle as BulletType
+
       this._bots.set(botId, botSprite);
     });
 
