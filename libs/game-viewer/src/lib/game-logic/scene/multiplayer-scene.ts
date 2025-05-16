@@ -50,6 +50,7 @@ export class MultiplayerScene extends Phaser.Scene {
   private _healthTexts: Map<string, Phaser.GameObjects.Text> = new Map();
 
   private _scoreText!: Phaser.GameObjects.Text;
+  private fpsText: any;
 
   constructor(signalRService: SignalRService) {
     super({ key: 'MultiplayerScene' });
@@ -62,7 +63,7 @@ export class MultiplayerScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.spritesheet('player', 'assets/sprites/player/player_0.jpg', { frameWidth: 256, frameHeight: 256 });
+    this.load.spritesheet('player', 'assets/sprites/player/player_0.png', { frameWidth: 256, frameHeight: 256 });
     this.load.spritesheet('enemy_0', 'assets/sprites/enemies/enemy_0.png', { frameWidth: 256, frameHeight: 256 });
     this.load.spritesheet('enemy_1', 'assets/sprites/enemies/enemy_1.png', { frameWidth: 256, frameHeight: 256 });
     this.load.spritesheet('ball', 'assets/sprites/player/ball.png', { frameWidth: 64, frameHeight: 64 });
@@ -77,8 +78,8 @@ export class MultiplayerScene extends Phaser.Scene {
 
     this._cursors = this.input.keyboard!.createCursorKeys();
 
-    // Создаем спрайт локального игрока
-    this._playerSprite = this.add.sprite(width / 2, height / 2, 'ball');
+    // Спрайт локального игрока
+    this._playerSprite = this.add.sprite(width / 2, height / 2, 'player').setScale(0.25, 0.25);
 
     this._playerHealthText = this.add.text(16, 16, 'HP: 100', {
       font: '20px Arial',
@@ -106,14 +107,14 @@ export class MultiplayerScene extends Phaser.Scene {
         this._playerSprite.setPosition(pos.x, pos.y);
       } else {
         // Добавляем других игроков
-        const remote = this.add.sprite(pos.x, pos.y, 'ball').setTint(0x00ff00);
+        const remote = this.add.sprite(pos.x, pos.y, 'player').setScale(0.25, 0.25).setTint(0x00ff00);
         this._remotePlayers.set(connectionId, remote);
       }
     });
 
     // Инициализация ботов
     Object.entries(this._initialBotPositions).forEach(([botId, pos]) => {
-      const botSprite = this.add.sprite(pos.x, pos.y, 'bot');
+      const botSprite = this.add.sprite(pos.x, pos.y, 'bot');//TODO Добавить инициализацию как при обновлении
       this._bots.set(botId, botSprite);
     });
 
@@ -124,10 +125,23 @@ export class MultiplayerScene extends Phaser.Scene {
       });
     });
 
-    this.events.on('spawn-bot', (botId: string, pos: { x: number, y: number, shootingStyle: number }) => {
+    this.events.on('spawn-bot', (botId: string, state: { x: number, y: number, shootingStyle: number }) => {
 
-      const botSprite = this.add.sprite(pos.x, pos.y, 'enemy_0').setRotation(3.14159/*180 градусов*/).setScale(0.25, 0.25); // 'bot' должен быть загружен как текстура
-      shootingStyle as BulletType
+      let texture = 'enemy_0';
+      switch (state.shootingStyle as BulletType) {
+        case BulletType.Straight:
+          texture = 'enemy_0';
+          break;
+        case BulletType.ZigZag:
+          texture = 'enemy_1';
+          break;
+        case BulletType.Arc:
+          texture = 'enemy_2';
+          break;
+      }
+
+      const botSprite = this.add.sprite(state.x, state.y, texture).setRotation(3.14159/*180 градусов*/).setScale(0.25, 0.25); // 'bot' должен быть загружен как текстура
+      //shootingStyle as BulletType
 
       this._bots.set(botId, botSprite);
     });
@@ -144,7 +158,7 @@ export class MultiplayerScene extends Phaser.Scene {
 
       let remoteSprite = this._remotePlayers.get(connectionId);
       if (!remoteSprite) {
-        remoteSprite = this.add.sprite(position.x, position.y, 'ball').setTint(0x00ff00); // Зеленый для других
+        remoteSprite = this.add.sprite(position.x, position.y, 'player').setScale(0.25, 0.25).setTint(0x00ff00); // Зеленый для других
         this._remotePlayers.set(connectionId, remoteSprite);
       } else {
         remoteSprite.setPosition(position.x, position.y);
@@ -311,6 +325,8 @@ export class MultiplayerScene extends Phaser.Scene {
         this._scoreText.setText(`Score: ${score.toFixed(0)}`);
       }
     });
+
+    this.fpsText = this.add.text(10, 10, '', { font: '16px Courier' });
   }
 
   override update() {
@@ -362,6 +378,6 @@ export class MultiplayerScene extends Phaser.Scene {
       }
     });
 
-
+    this.fpsText.setText(`FPS: ${Math.floor(this.game.loop.actualFps)}`);
   }
 }

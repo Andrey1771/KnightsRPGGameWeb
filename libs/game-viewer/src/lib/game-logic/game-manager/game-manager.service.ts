@@ -42,6 +42,10 @@ export class GameManagerService {
           gravity: { },
         },
       },
+      fps: {
+        target: 30,
+        forceSetTimeOut: true
+      }
     };
   }
 
