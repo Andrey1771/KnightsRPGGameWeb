@@ -198,6 +198,17 @@ export class MultiplayerScene extends Phaser.Scene {
     on("PlayerDied", id => this._handlePlayerDeath(id));
     on("ReceiveBotPosition", (id, pos) => this._updateBotPosition(id, pos));
     on("UpdateScore", score => this._updateScore(score));
+
+    on("GameOver", (score) => {
+      const wantsToSave = confirm(`Игра окончена. Ваш счёт: ${score}. Хотите сохранить результат?`);
+
+      if (wantsToSave) {
+        const playerName = prompt("Введите ваше имя:");
+        if (playerName?.trim()) {
+          this._signalRService.connection.invoke("ReportDeath", playerName.trim());
+        }
+      }
+    });
   }
 
   private _spawnBot(botId: string, state: any) {
