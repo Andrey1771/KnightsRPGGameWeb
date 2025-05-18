@@ -199,15 +199,18 @@ export class MultiplayerScene extends Phaser.Scene {
     on("ReceiveBotPosition", (id, pos) => this._updateBotPosition(id, pos));
     on("UpdateScore", score => this._updateScore(score));
 
-    on("GameOver", (score) => {
-      const wantsToSave = confirm(`Игра окончена. Ваш счёт: ${score}. Хотите сохранить результат?`);
+    on("GameOver", (score: number) => {
+      this._showGameOverMenu(score);
 
-      if (wantsToSave) {
-        const playerName = prompt("Введите ваше имя:");
-        if (playerName?.trim()) {
-          this._signalRService.connection.invoke("ReportDeath", playerName.trim());
+      setTimeout(() => {
+        const wantsToSave = confirm(`Хотите сохранить результат? Ваш счёт: ${score}`);
+        if (wantsToSave) {
+          const playerName = prompt("Введите ваше имя:");
+          if (playerName?.trim()) {
+            this._signalRService.connection.invoke("ReportDeath", playerName.trim());
+          }
         }
-      }
+      }, 300); // немного позже, чтобы не перекрывало UI
     });
   }
 
@@ -364,6 +367,31 @@ export class MultiplayerScene extends Phaser.Scene {
     this._scoreText?.setText(`Score: ${score.toFixed(0)}`);
   }
 
+  private _showGameOverMenu(score: number) {
+    const { width, height } = this.scale;
+
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
+    const panel = this.add.rectangle(width / 2, height / 2, 400, 200, 0x222222, 0.9).setStrokeStyle(2, 0xffffff);
+
+    const gameOverText = this.add.text(width / 2, height / 2 - 60, `Game Over\nВаш счёт: ${score.toFixed(0)}`, {
+      font: '24px Arial',
+      color: '#ffffff',
+      align: 'center'
+    }).setOrigin(0.5);
+
+    const button = this.add.text(width / 2, height / 2 + 30, 'Вернуться в меню', {
+      font: '20px Arial',
+      color: '#ffffff',
+      backgroundColor: '#444444',
+      padding: { x: 20, y: 10 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    button.on('pointerover', () => button.setStyle({ backgroundColor: '#666666' }));
+    button.on('pointerout', () => button.setStyle({ backgroundColor: '#444444' }));
+    button.on('pointerdown', () => {
+      this.scene.start('MainMenuScene'); // ← предполагается, что такая сцена у тебя есть
+    });
+  }
 
   override update() {
     this.fpsText.setText(`FPS: ${Math.floor(this.game.loop.actualFps)}`);
