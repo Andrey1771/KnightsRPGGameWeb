@@ -14,6 +14,5 @@ export class MainWindowComponent implements OnInit {
   constructor(private _httpGameService: HttpGameService) {}
 
   ngOnInit(): void {
-    this.gameData = this._httpGameService.getGameData();
   }
 }

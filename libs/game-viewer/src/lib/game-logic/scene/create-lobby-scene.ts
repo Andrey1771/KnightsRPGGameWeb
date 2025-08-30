@@ -31,8 +31,8 @@ export class CreateLobbyScene extends Phaser.Scene {
 
     this.inputField = new PhaserInputText(this, width / 2, height / 4, 'Введите название лобби');
 
-    this.createButton = this.createButtonElement(width / 2, height * 0.6, 'Создать лобби', () => {
-      this.createLobby();
+    this.createButton = this.createButtonElement(width / 2, height * 0.6, 'Создать лобби', async () => {
+      await this.createLobby();
     });
 
     this.backButton = this.createButtonElement(width / 2, height * 0.7, 'Назад в меню', () => {
@@ -57,7 +57,7 @@ export class CreateLobbyScene extends Phaser.Scene {
     return button;
   }
 
-  createLobby() {
+  async createLobby() {
     const lobbyName = this.inputField.getValue();
 
     if (!lobbyName) {
@@ -67,7 +67,7 @@ export class CreateLobbyScene extends Phaser.Scene {
 
     console.log(`Создание лобби с названием: ${lobbyName}`);
     this.currentLobbyName = lobbyName;
-    this.createRoom(lobbyName, 4 /* заглушка */);
+    await this.createRoom(lobbyName, 4 /* заглушка */);
   }
 
   setLobbyScene(lobbyName: string) {

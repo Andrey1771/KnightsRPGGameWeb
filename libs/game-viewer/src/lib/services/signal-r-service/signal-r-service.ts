@@ -18,7 +18,11 @@ export class SignalRService {
     return this.hubConnection.start();
   }
 
-  public get connection(): signalR.HubConnection {
+  public stopConnection(): Promise<void> {
+    return this.hubConnection.stop();
+  }
+
+  public get connection(): signalR.HubConnection { //TODO Убрать
     return this.hubConnection;
   }
 

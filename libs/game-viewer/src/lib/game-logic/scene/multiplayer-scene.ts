@@ -221,6 +221,7 @@ export class MultiplayerScene extends Phaser.Scene {
       .setScale(0.25);
 
     this._bots.set(botId, sprite);
+    console.log("spawnBot: " + botId);
   }
 
   private _updatePlayerPosition(id: string, pos: any) {
@@ -388,8 +389,11 @@ export class MultiplayerScene extends Phaser.Scene {
 
     button.on('pointerover', () => button.setStyle({ backgroundColor: '#666666' }));
     button.on('pointerout', () => button.setStyle({ backgroundColor: '#444444' }));
-    button.on('pointerdown', () => {
-      this.scene.start('MainMenuScene'); // ← предполагается, что такая сцена у тебя есть
+    button.on('pointerdown', async () => {
+
+      await this._signalRService.stopConnection();
+      this.events.removeAllListeners();
+      this.scene.start('MainMenuScene');
     });
   }
 

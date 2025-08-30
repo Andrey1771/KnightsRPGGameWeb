@@ -19,6 +19,8 @@ export class JoinLobbyScene extends Phaser.Scene {
   }
 
   async create() {
+    await this._signalRService.startConnection();//
+    
     const { width, height } = this.scale;
 
     this.cameras.main.setBackgroundColor('#1a1a1a');
@@ -39,8 +41,6 @@ export class JoinLobbyScene extends Phaser.Scene {
       this.inputField.destroy();
       this.scene.start('MainMenuScene');
     });
-
-    await this._signalRService.startConnection();
 
     this._signalRService.connection.on("Error", (errorMessage: string) => {
       alert(`Ошибка: ${errorMessage}`);

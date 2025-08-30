@@ -11,13 +11,4 @@ export class GameHub {
 
   constructor(private _eventBus: EventBusService) {
   }
-
-  private connection = new HubConnectionBuilder()
-    .withUrl("/gamehub")
-    .build();
-
-  public initializeSignalRConnection() {
-    this.connection.on("ReceiveGameChanged", (resp: GameInfoNotifyDto) => this._eventBus.raiseEvent(new ReceiveGameChanged(resp)));
-    //this.connection.invoke()
-  }
 }
