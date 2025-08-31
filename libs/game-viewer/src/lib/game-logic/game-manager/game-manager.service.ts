@@ -59,5 +59,7 @@ export class GameManagerService {
     this.phaserGame.scene.add('LobbyScene', new LobbyScene(this._signalRService));
     this.phaserGame.scene.add('MultiplayerScene', new MultiplayerScene(this._signalRService));
     this.phaserGame.scene.add('JoinLobbyScene', new JoinLobbyScene(this._signalRService));
+    this.phaserGame.scene.add('SettingsScene', new SettingsScene(this._phaserMusicService));
+
   }
 }
