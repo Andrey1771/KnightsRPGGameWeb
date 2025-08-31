@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpGameService } from '../services/http-game-service/http-game-service.service';
-import {GameInfoDto} from "../dto/game-info-dto";
+import { GameInfoDto } from "../dto/game-info-dto";
 import { Observable } from 'rxjs';
 
 @Component({

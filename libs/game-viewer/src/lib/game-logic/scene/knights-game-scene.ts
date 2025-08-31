@@ -18,16 +18,6 @@ export class KnightsGameScene extends Phaser.Scene {
     super({ key: 'main' });
   }
 
-  preload() {
-    this.load.spritesheet('ball', 'assets/sprites/player/ball.png', { frameWidth: 64, frameHeight: 64 });
-    this.load.image('background', 'assets/sprites/background/background.png');
-    this.load.image('enemyBullet', 'assets/sprites/bullets/enemyBullet.png'); // Загружаем пулю врага
-
-    this.load.image('enemy1', 'assets/sprites/enemies/enemy1.png');
-    this.load.image('enemy2', 'assets/sprites/enemies/enemy2.png');
-    this.load.image('enemy3', 'assets/sprites/enemies/enemy3.png');
-  }
-
   create() {
     const { width, height } = this.scale;
     this.scale.on('resize', this.resize, this);

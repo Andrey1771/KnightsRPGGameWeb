@@ -10,13 +10,8 @@ export class MainMenuScene extends Phaser.Scene {
     this._phaserMusicService = phaserMusicService;
   }
 
-  preload() {
-    this.load.image('menuBg', 'assets/sprites/background/mainMenuBackground.jpg');
-    this._phaserMusicService.loadAll(this);
-  }
-
   create() {
-    this._phaserMusicService.createAllMusicAndSounds();
+    this._phaserMusicService.init(this);
     this._phaserMusicService.playMusic(MusicTrack.MainTheme);
 
     const { width, height } = this.scale;

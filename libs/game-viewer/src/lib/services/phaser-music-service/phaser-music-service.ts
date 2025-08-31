@@ -1,8 +1,5 @@
 import { Injectable } from '@angular/core';
 import * as Phaser from 'phaser';
-import WebAudioSound = Phaser.Sound.WebAudioSound;
-import NoAudioSound = Phaser.Sound.NoAudioSound;
-import HTML5AudioSound = Phaser.Sound.HTML5AudioSound;
 
 export enum MusicTrack {
   MainTheme = "menu_theme",
@@ -18,60 +15,62 @@ export enum SoundsTrack {
   providedIn: 'root'
 })
 export class PhaserMusicService {
-  private _scene: Phaser.Scene | null = null;
+  private soundManager!: Phaser.Sound.BaseSoundManager;
 
-  private _menuTheme!: WebAudioSound | NoAudioSound | HTML5AudioSound;
-  private _mainBattleTheme!: WebAudioSound | NoAudioSound | HTML5AudioSound;
-  private _enemyLaser!: WebAudioSound | NoAudioSound | HTML5AudioSound;
-  private _playerLaser!: WebAudioSound | NoAudioSound | HTML5AudioSound;
+  private music: Map<MusicTrack, Phaser.Sound.BaseSound> = new Map();
+  private sounds: Map<SoundsTrack, Phaser.Sound.BaseSound> = new Map();
 
-  private _currentTrack: (WebAudioSound | NoAudioSound | HTML5AudioSound) | null = null;
+  private currentTrack: Phaser.Sound.BaseSound | null = null;
 
-  public loadAll(scene: Phaser.Scene) {
-    if (this._scene) {
-      throw new Error("Сцена уже загружена");
-    }
-    this._scene = scene;
+  public init(scene: Phaser.Scene) {
+    this.soundManager = scene.sound;
 
-    this._scene.load.audio(MusicTrack.MainTheme, 'assets/music/menu_theme.mp3');
-    this._scene.load.audio(MusicTrack.BattleTheme, 'assets/music/main_battle_theme.mp3');
+    // Создаём музыку
+    this.music.set(
+      MusicTrack.MainTheme,
+      this.soundManager.add(MusicTrack.MainTheme, { loop: true })
+    );
+    this.music.set(
+      MusicTrack.BattleTheme,
+      this.soundManager.add(MusicTrack.BattleTheme, { loop: true })
+    );
 
-    this._scene.load.audio(SoundsTrack.EnemyLaser, 'assets/sounds/enemy_laser.wav');
-    this._scene.load.audio(SoundsTrack.PlayerLaser, 'assets/sounds/player_laser.wav');
+    // Создаём эффекты
+    this.sounds.set(
+      SoundsTrack.EnemyLaser,
+      this.soundManager.add(SoundsTrack.EnemyLaser)
+    );
+    this.sounds.set(
+      SoundsTrack.PlayerLaser,
+      this.soundManager.add(SoundsTrack.PlayerLaser)
+    );
   }
 
-  public createAllMusicAndSounds() {
-    if (!this._scene) {
-      throw new Error("Необходимо загрузить музыку для сцены");
+  public playMusic(track: MusicTrack) {
+    if (this.currentTrack?.isPlaying) {
+      this.currentTrack.stop();
     }
-
-    this._menuTheme = this._scene.sound.add(MusicTrack.MainTheme, { loop: true });
-    this._mainBattleTheme = this._scene.sound.add(MusicTrack.BattleTheme, { loop: true });
-
-    this._enemyLaser = this._scene.sound.add(SoundsTrack.EnemyLaser, { loop: false });
-    this._playerLaser = this._scene.sound.add(SoundsTrack.PlayerLaser, { loop: false });
+    this.currentTrack = this.music.get(track) || null;
+    this.currentTrack?.play();
   }
 
-  public playMusic(music: MusicTrack) {
-    switch (music) {
-      case MusicTrack.MainTheme:
-        this._currentTrack = this._menuTheme;
-        break;
-      case MusicTrack.BattleTheme:
-        this._currentTrack = this._mainBattleTheme;
-        break;
-    }
-    this._currentTrack.play();
+  public stopMusic() {
+    this.currentTrack?.stop();
+    this.currentTrack = null;
   }
 
-  public playSound(sound: SoundsTrack) {
-    switch (sound) {
-      case SoundsTrack.EnemyLaser:
-        this._enemyLaser.play();
-        break;
-      case SoundsTrack.PlayerLaser:
-        this._playerLaser.play();
-        break;
-    }
+  public playSound(track: SoundsTrack) {
+    this.sounds.get(track)?.play();
+  }
+
+  public muteAll(mute: boolean) {
+    this.soundManager.mute = mute;
+  }
+
+  /**
+   * Установить громкость (0.0 – 1.0)
+   */
+  public setVolume(volume: number) {
+    this.soundManager.volume = volume;
   }
 }

@@ -6,8 +6,9 @@ import { SettingsScene } from "../scene/settings-scene";
 import { LobbyScene } from "../scene/lobby-scene";
 import { CreateLobbyScene } from '../scene/create-lobby-scene';
 import { JoinLobbyScene } from '../scene/join-lobby-scene';
-import {SignalRService} from "../../services/signal-r-service/signal-r-service";
+import { SignalRService } from "../../services/signal-r-service/signal-r-service";
 import { PhaserMusicService } from '../../services/phaser-music-service/phaser-music-service';
+import { PreloaderScene } from "../scene/preloader-scene";
 
 @Injectable({
   providedIn: 'root',
@@ -29,7 +30,7 @@ export class GameManagerService {
       backgroundColor: '#000000',
       width: window.innerWidth,
       height: window.innerHeight,
-      scene: [MainMenuScene, KnightsGameScene, JoinLobbyScene, SettingsScene],
+      scene: [PreloaderScene, MainMenuScene, KnightsGameScene, JoinLobbyScene, SettingsScene],
       scale: {
         mode: Phaser.Scale.FIT, // сохраняет пропорции и масштабирует
         autoCenter: Phaser.Scale.CENTER_BOTH, // центрирует игру
