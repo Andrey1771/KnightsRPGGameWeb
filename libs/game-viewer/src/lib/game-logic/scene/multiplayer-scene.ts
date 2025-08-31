@@ -67,6 +67,7 @@ export class MultiplayerScene extends Phaser.Scene {
     this.load.spritesheet('player', 'assets/sprites/player/player_0.png', { frameWidth: 256, frameHeight: 256 });
     this.load.spritesheet('enemy_0', 'assets/sprites/enemies/enemy_0.png', { frameWidth: 256, frameHeight: 256 });
     this.load.spritesheet('enemy_1', 'assets/sprites/enemies/enemy_1.png', { frameWidth: 256, frameHeight: 256 });
+    this.load.spritesheet('enemy_2', 'assets/sprites/enemies/enemy_2.png', { frameWidth: 256, frameHeight: 256 });
     this.load.spritesheet('ball', 'assets/sprites/player/ball.png', { frameWidth: 64, frameHeight: 64 });
     this.load.image('background', 'assets/sprites/background/background.png');
 
@@ -393,6 +394,7 @@ export class MultiplayerScene extends Phaser.Scene {
 
       await this._signalRService.stopConnection();
       this.events.removeAllListeners();
+      button.destroy();
       this.scene.start('MainMenuScene');
     });
   }

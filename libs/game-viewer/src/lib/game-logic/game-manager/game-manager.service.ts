@@ -7,6 +7,7 @@ import { LobbyScene } from "../scene/lobby-scene";
 import { CreateLobbyScene } from '../scene/create-lobby-scene';
 import { JoinLobbyScene } from '../scene/join-lobby-scene';
 import {SignalRService} from "../../services/signal-r-service/signal-r-service";
+import { PhaserMusicService } from '../../services/phaser-music-service/phaser-music-service';
 
 @Injectable({
   providedIn: 'root',
@@ -15,7 +16,7 @@ export class GameManagerService {
   private phaserGame!: Phaser.Game;
   private config!: Phaser.Types.Core.GameConfig;
 
-  constructor(private _signalRService: SignalRService) {
+  constructor(private _signalRService: SignalRService, private _phaserMusicService: PhaserMusicService) {
     this.initConfiguration();
   }
 
@@ -52,6 +53,7 @@ export class GameManagerService {
   public createGame(): void {
     this.phaserGame = new Phaser.Game(this.config);
 
+    this.phaserGame.scene.add('MainMenuScene', new MainMenuScene(this._phaserMusicService));
     this.phaserGame.scene.add('CreateLobbyScene', new CreateLobbyScene(this._signalRService));
     this.phaserGame.scene.add('LobbyScene', new LobbyScene(this._signalRService));
     this.phaserGame.scene.add('MultiplayerScene', new MultiplayerScene(this._signalRService));

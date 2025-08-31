@@ -1,17 +1,24 @@
 import * as Phaser from 'phaser';
+import {MusicTrack, PhaserMusicService} from "../../services/phaser-music-service/phaser-music-service";
 
 export class MainMenuScene extends Phaser.Scene {
   private inputField!: HTMLInputElement;
+  private _phaserMusicService!: PhaserMusicService;
 
-  constructor() {
+  constructor(phaserMusicService: PhaserMusicService) {
     super({ key: 'MainMenuScene' });
+    this._phaserMusicService = phaserMusicService;
   }
 
   preload() {
     this.load.image('menuBg', 'assets/sprites/background/mainMenuBackground.jpg');
+    this._phaserMusicService.loadAll(this);
   }
 
   create() {
+    this._phaserMusicService.createAllMusicAndSounds();
+    this._phaserMusicService.playMusic(MusicTrack.MainTheme);
+
     const { width, height } = this.scale;
     const canvas = this.sys.game.canvas;
     const realWidth = canvas.width;

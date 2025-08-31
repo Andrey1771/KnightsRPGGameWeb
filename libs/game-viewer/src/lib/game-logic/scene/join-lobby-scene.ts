@@ -19,15 +19,22 @@ export class JoinLobbyScene extends Phaser.Scene {
   }
 
   async create() {
-    await this._signalRService.startConnection();//
-    
+    await this._signalRService.startConnection();
+
     const { width, height } = this.scale;
 
     this.cameras.main.setBackgroundColor('#1a1a1a');
 
+    this.add.text(width / 2, height / 8, 'Присоединиться к лобби', {
+      fontSize: '48px',
+      fontFamily: 'Arial',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
     this.inputField = new PhaserInputText(this, width / 2, height / 3, 'Введите название лобби');
 
-    this.createButtonElement(width / 2, height * 0.6, 'Присоединиться', async () => {
+    this.joinButton = this.createButtonElement(width / 2, height * 0.6, 'Присоединиться', async () => {
       const lobbyName = this.inputField.getValue();
       if (!lobbyName) {
         alert('Введите название лобби');
@@ -35,10 +42,12 @@ export class JoinLobbyScene extends Phaser.Scene {
       }
 
       await this._signalRService.connection.invoke("JoinRoom", lobbyName);
+      this.joinButton.destroy();
     });
 
-    this.createButtonElement(width / 2, height * 0.7, 'Назад в меню', () => {
+    this.backButton = this.createButtonElement(width / 2, height * 0.7, 'Назад в меню', () => {
       this.inputField.destroy();
+      this.backButton.destroy();
       this.scene.start('MainMenuScene');
     });
 
