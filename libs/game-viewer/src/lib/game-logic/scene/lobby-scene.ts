@@ -1,14 +1,21 @@
 import * as Phaser from 'phaser';
-import {SignalRService} from "../../services/signal-r-service/signal-r-service";
+import { SignalRService } from "../../services/signal-r-service/signal-r-service";
+
+interface PlayerInfoResponseDto {
+  connectionIds: string[],
+  leaderConnectionId: string
+}
 
 export class LobbyScene extends Phaser.Scene {
   private lobbyNameText!: Phaser.GameObjects.Text;
   private startButton!: Phaser.GameObjects.Text;
   private lobbyName = '';
-
   private playerListTexts: Phaser.GameObjects.Text[] = [];
-
   private _signalRService!: SignalRService;
+
+  private backButton!: Phaser.GameObjects.Text;
+
+  private currentPlayerName = ''; // Имя текущего игрока
 
   constructor(signalRService: SignalRService) {
     super({ key: 'LobbyScene' });
@@ -21,7 +28,6 @@ export class LobbyScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-
     this.cameras.main.setBackgroundColor('#1a1a1a');
 
     this.lobbyNameText = this.add.text(width / 2, height / 8, `Лобби: ${this.lobbyName}`, {
@@ -31,29 +37,77 @@ export class LobbyScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // При старте сцены подключаем обработчик начала игры
+    const startX = this.scale.width / 2;
+    const startY = this.scale.height * 0.3;
+
+    this.add.text(startX, startY - 40, 'Игроки:', {
+      fontSize: '32px',
+      fontFamily: 'Arial',
+      color: '#ffffff'
+    }).setOrigin(0.5);
+
+    this.backButton = this.createButtonElement(width / 2, height * 0.8, 'Назад в меню', () => {
+      this.backButton.destroy();
+      this.scene.start('MainMenuScene');
+    });
+
+    // Обработчик старта игры
     this._signalRService.connection.on("GameStarted", (initialPositions, bots) => {
       console.log('Игра началась!');
       this.scene.start('MultiplayerScene', { initialPositions, bots });
     });
 
-    // При нажатии кнопки "Начать игру"
-    this.startButton = this.createButtonElement(width / 2, height * 0.8, 'Начать игру', () => {
+    // Кнопка "Начать игру" создается, но показывается только у лидера
+    this.startButton = this.createButtonElement(width / 2, height * 0.7, 'Начать игру', () => {
       this._signalRService.connection.invoke("StartGame", this.lobbyName)
         .catch(err => console.error("Ошибка запуска игры:", err));
     });
+    this.startButton.setVisible(false); // по умолчанию скрыта
 
-    // Обработчик получения списка игроков
-    this._signalRService.connection.on("ReceivePlayerList", (players: string[]) => {
-      this.updatePlayerList(players);
+    // Обновление списка игроков
+    this._signalRService.connection.on("ReceivePlayerList", (dto: PlayerInfoResponseDto) => {
+      this.updatePlayerList(dto.connectionIds, dto.leaderConnectionId);
+      this.updateLeaderUI(dto.leaderConnectionId);
     });
 
-    // После загрузки сцены сразу запрашиваем список игроков
+    // Запрашиваем список игроков
     this._signalRService.connection.invoke("UpdatePlayerList", this.lobbyName)
       .catch(err => console.error("Ошибка запроса списка игроков:", err));
+  }
 
+  updatePlayerList(connectionIds: string[], leaderConnectionId: string) {
+    // Удаляем старые элементы
+    this.playerListTexts.forEach(text => text.destroy());
+    this.playerListTexts = [];
 
+    const startX = this.scale.width / 2;
+    const startY = this.scale.height * 0.3;
 
+    connectionIds.forEach((connectionId, index) => {
+      const isLeader = connectionId === leaderConnectionId;
+      const color = isLeader ? '#ffcc00' : '#00ff00';
+      const leaderIcon = isLeader ? ' 🔰' : '';
+      const playerText = this.add.text(
+        startX,
+        startY + index * 30,
+        `${connectionId}${leaderIcon}`,
+        {
+          fontSize: '24px',
+          fontFamily: 'Arial',
+          color
+        }
+      ).setOrigin(0.5);
+
+      this.playerListTexts.push(playerText);
+    });
+  }
+
+  private updateLeaderUI(leaderConnectionId: string) {
+    if (this._signalRService.connectionId === leaderConnectionId) {
+      this.startButton.setVisible(true);
+    } else {
+      this.startButton.setVisible(false);
+    }
   }
 
   createButtonElement(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Text {
@@ -70,36 +124,5 @@ export class LobbyScene extends Phaser.Scene {
     button.on('pointerdown', callback);
 
     return button;
-  }
-
-  updatePlayerList(players: string[]) {
-    // Удаляем старые элементы
-    this.playerListTexts.forEach(text => text.destroy());
-    this.playerListTexts = [];
-
-    const startX = this.scale.width / 2;
-    const startY = this.scale.height * 0.3;
-
-    this.add.text(startX, startY - 40, 'Игроки:', {
-      fontSize: '32px',
-      fontFamily: 'Arial',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-
-    // Выводим список игроков
-    players.forEach((player, index) => {
-      const playerText = this.add.text(startX, startY + index * 30, `Игрок ${index + 1}: ${player}`, {
-        fontSize: '24px',
-        fontFamily: 'Arial',
-        color: '#00ff00'
-      }).setOrigin(0.5);
-
-      this.playerListTexts.push(playerText);
-    });
-  }
-
-  startGame() {
-    console.log(`Игра начинается в лобби: ${this.lobbyName}`);
-    this.scene.start('MultiplayerScene', { isHost: true });
   }
 }

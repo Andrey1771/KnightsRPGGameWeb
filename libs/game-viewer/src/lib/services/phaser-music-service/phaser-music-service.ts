@@ -22,6 +22,7 @@ export class PhaserMusicService {
   private music: Map<MusicTrack, Phaser.Sound.BaseSound> = new Map();
   private sounds: Map<SoundsTrack, Phaser.Sound.BaseSound> = new Map();
   private isSoundsMuted = false;
+  private isMusicMuted = false;
 
   private currentTrack: Phaser.Sound.BaseSound | null = null;
 
@@ -58,9 +59,12 @@ export class PhaserMusicService {
   }
 
   public playMusic(track: MusicTrack) {
-    if (this.currentTrack?.isPlaying) {
-      this.currentTrack.stop();
+    if (this.isMusicMuted) {
+      return;
     }
+
+    this.stopCurrentTrack();
+
     this.currentTrack = this.music.get(track) || null;
     this.currentTrack?.play();
   }
@@ -85,7 +89,8 @@ export class PhaserMusicService {
   }
 
   public toggleMusic(enabled: boolean) {
-    this.soundManager.mute = !enabled;
+    this.isMusicMuted = !enabled;
+    this.stopCurrentTrack();
   }
 
   public toggleSounds(enabled: boolean) {

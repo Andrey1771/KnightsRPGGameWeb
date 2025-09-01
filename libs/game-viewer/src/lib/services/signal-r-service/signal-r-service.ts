@@ -26,6 +26,10 @@ export class SignalRService {
     return this.hubConnection;
   }
 
+  public get connectionId(): string | null { //TODO Убрать
+    return this.hubConnection.connectionId;
+  }
+
   public isConnected(): boolean {
     return this.hubConnection?.state === signalR.HubConnectionState.Connected;
   }
