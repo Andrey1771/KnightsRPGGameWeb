@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
-import { HubConnection } from '@microsoft/signalr';
-import {SignalRService} from "../../services/signal-r-service/signal-r-service";
+import { SignalRService } from "../../services/signal-r-service/signal-r-service";
+import { MusicTrack, PhaserMusicService, SoundsTrack } from "../../services/phaser-music-service/phaser-music-service";
 
 enum PlayerInputAction {
   MoveUp = 'MoveUp',
@@ -43,6 +43,7 @@ export class MultiplayerScene extends Phaser.Scene {
   private _bots: Map<string, Phaser.GameObjects.Sprite> = new Map();
 
   private _signalRService!: SignalRService;
+  private _phaserMusicService!: PhaserMusicService;
 
   private _bullets: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private _enemyBullets: Map<string, Phaser.GameObjects.Rectangle> = new Map();
@@ -53,9 +54,10 @@ export class MultiplayerScene extends Phaser.Scene {
   private _scoreText!: Phaser.GameObjects.Text;
   private fpsText: any;
 
-  constructor(signalRService: SignalRService) {
+  constructor(signalRService: SignalRService, phaserMusicService: PhaserMusicService) {
     super({ key: 'MultiplayerScene' });
     this._signalRService = signalRService;
+    this._phaserMusicService = phaserMusicService;
   }
 
   init(data: { initialPositions: PositionMap, bots: PositionMap }) {
@@ -74,6 +76,8 @@ export class MultiplayerScene extends Phaser.Scene {
     this._spawnInitialBots();
 
     this._setupSignalRHandlers();
+
+    this._phaserMusicService.playMusic(MusicTrack.BattleTheme);
   }
 
   private _initializeScene() {
@@ -173,7 +177,6 @@ export class MultiplayerScene extends Phaser.Scene {
     this.events.on('spawn-bot', (botId: string, state: any) => this._spawnBot(botId, state));
 
     on("ReceivePlayerPosition", (id, pos) => this._updatePlayerPosition(id, pos));
-    on("ReceiveShot", (id, startPos) => this._spawnShot(startPos));
     on("ReceiveHit", () => this._playerGotHit());
     on("ReceiveBotHit", (id, health) => this._botGotHit(id, health));
     on("BotDied", id => this._removeBot(id));
@@ -244,13 +247,6 @@ export class MultiplayerScene extends Phaser.Scene {
     }
   }
 
-  private _spawnShot(pos: any) {
-    const bullet = this.add.circle(pos.x, pos.y, 4, 0xffff00);
-    this.physics.add.existing(bullet);
-    (bullet.body as Phaser.Physics.Arcade.Body).setVelocity(0, -400);
-    this.time.delayedCall(2000, () => bullet.destroy());
-  }
-
   private _playerGotHit() {
     this._playerSprite.setTint(0xff0000);
     this.time.delayedCall(500, () => this._playerSprite.clearTint());
@@ -268,6 +264,7 @@ export class MultiplayerScene extends Phaser.Scene {
     if (bot) {
       bot.destroy();
       this._bots.delete(botId);
+      this._phaserMusicService.playSound(SoundsTrack.EnemyShipExplosion);
     }
   }
 
@@ -283,6 +280,7 @@ export class MultiplayerScene extends Phaser.Scene {
     const sprite = this.add.rectangle(bullet.x, bullet.y, 5, 10, 0xffffff);
     this.physics.add.existing(sprite);
     this._bullets.set(bullet.id, sprite);
+    this._phaserMusicService.playSound(SoundsTrack.PlayerLaser);
   }
 
   private _updateBullet(bullet: any) {
@@ -302,6 +300,7 @@ export class MultiplayerScene extends Phaser.Scene {
     const sprite = this.add.rectangle(bullet.x, bullet.y, 5, 10, 0xff0000);
     this.physics.add.existing(sprite);
     this._enemyBullets.set(bullet.id, sprite);
+    this._phaserMusicService.playSound(SoundsTrack.EnemyLaser);
   }
 
   private _updateEnemyBullet(bullet: any) {
@@ -342,6 +341,7 @@ export class MultiplayerScene extends Phaser.Scene {
         this._remotePlayers.delete(playerId);
       }
     }
+    this._phaserMusicService.playSound(SoundsTrack.PlayerShipExplosion);
   }
 
   private _updateBotPosition(botId: string, pos: any) {

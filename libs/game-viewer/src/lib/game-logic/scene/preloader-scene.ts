@@ -32,6 +32,8 @@ export class PreloaderScene extends Phaser.Scene {
     // Загружаем звуки
     this.load.audio(SoundsTrack.EnemyLaser, 'assets/sounds/enemy_laser.wav');
     this.load.audio(SoundsTrack.PlayerLaser, 'assets/sounds/player_laser.wav');
+    this.load.audio(SoundsTrack.EnemyShipExplosion, 'assets/sounds/enemy_ship_explosion.wav');
+    this.load.audio(SoundsTrack.PlayerShipExplosion, 'assets/sounds/player_ship_explosion.wav');
 
     // Загружаем спрайты и картинки
     this.load.image('background', 'assets/sprites/background/background.png');

@@ -10,6 +10,7 @@ import { SignalRService } from "../../services/signal-r-service/signal-r-service
 import { PhaserMusicService } from '../../services/phaser-music-service/phaser-music-service';
 import { PreloaderScene } from "../scene/preloader-scene";
 import { UIOverlayScene } from '../scene/ui-overlay-scene';
+import { ThisReceiver } from "@angular/compiler";
 
 @Injectable({
   providedIn: 'root',
@@ -58,7 +59,7 @@ export class GameManagerService {
     this.phaserGame.scene.add('MainMenuScene', new MainMenuScene(this._phaserMusicService));
     this.phaserGame.scene.add('CreateLobbyScene', new CreateLobbyScene(this._signalRService));
     this.phaserGame.scene.add('LobbyScene', new LobbyScene(this._signalRService));
-    this.phaserGame.scene.add('MultiplayerScene', new MultiplayerScene(this._signalRService));
+    this.phaserGame.scene.add('MultiplayerScene', new MultiplayerScene(this._signalRService, this._phaserMusicService));
     this.phaserGame.scene.add('JoinLobbyScene', new JoinLobbyScene(this._signalRService));
     this.phaserGame.scene.add('SettingsScene', new SettingsScene(this._phaserMusicService));
     this.phaserGame.scene.add('UIOverlayScene', new UIOverlayScene(this._phaserMusicService));
