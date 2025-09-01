@@ -62,7 +62,7 @@ export class SettingsScene extends Phaser.Scene {
       const sliderLeft = width / 2 - this.sliderWidth / 2;
       let newVolume = Phaser.Math.Clamp((pointerX - sliderLeft) / this.sliderWidth, 0, 1);
       this.currentVolume = newVolume;
-      
+
       this.sliderFill.width = this.sliderWidth * this.currentVolume;
 
       volumeText.setText(`Громкость: ${Math.round(this.currentVolume * 100)}%`);

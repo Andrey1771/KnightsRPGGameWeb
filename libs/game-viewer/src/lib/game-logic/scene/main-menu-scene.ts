@@ -49,19 +49,6 @@ export class MainMenuScene extends Phaser.Scene {
     this.createButton(width / 2, height / 2 + 130, 'Настройки', () => {
       this.scene.start('SettingsScene');
     });
-
-    //TODO Полный экран
-    const fullscreenButton = this.add.text(10, 10, '🖵 Fullscreen', {
-      fontSize: '24px'
-    }).setInteractive();
-
-    fullscreenButton.on('pointerup', () => {
-      if (!this.scale.isFullscreen) {
-        this.scale.startFullscreen();
-      } else {
-        this.scale.stopFullscreen();
-      }
-    });
   }
 
   createButton(x: number, y: number, text: string, callback: () => void) {
@@ -76,5 +63,7 @@ export class MainMenuScene extends Phaser.Scene {
     button.on('pointerover', () => button.setStyle({ backgroundColor: '#333333' }));
     button.on('pointerout', () => button.setStyle({ backgroundColor: '#000000' }));
     button.on('pointerdown', callback);
+
+    return button;
   }
 }

@@ -9,6 +9,7 @@ import { JoinLobbyScene } from '../scene/join-lobby-scene';
 import { SignalRService } from "../../services/signal-r-service/signal-r-service";
 import { PhaserMusicService } from '../../services/phaser-music-service/phaser-music-service';
 import { PreloaderScene } from "../scene/preloader-scene";
+import { UIOverlayScene } from '../scene/ui-overlay-scene';
 
 @Injectable({
   providedIn: 'root',
@@ -30,7 +31,7 @@ export class GameManagerService {
       backgroundColor: '#000000',
       width: window.innerWidth,
       height: window.innerHeight,
-      scene: [PreloaderScene, MainMenuScene, KnightsGameScene, JoinLobbyScene, SettingsScene],
+      scene: [PreloaderScene, MainMenuScene, KnightsGameScene, JoinLobbyScene, SettingsScene, UIOverlayScene],
       scale: {
         mode: Phaser.Scale.FIT, // сохраняет пропорции и масштабирует
         autoCenter: Phaser.Scale.CENTER_BOTH, // центрирует игру
@@ -60,6 +61,7 @@ export class GameManagerService {
     this.phaserGame.scene.add('MultiplayerScene', new MultiplayerScene(this._signalRService));
     this.phaserGame.scene.add('JoinLobbyScene', new JoinLobbyScene(this._signalRService));
     this.phaserGame.scene.add('SettingsScene', new SettingsScene(this._phaserMusicService));
+    this.phaserGame.scene.add('UIOverlayScene', new UIOverlayScene(this._phaserMusicService));
 
   }
 }
