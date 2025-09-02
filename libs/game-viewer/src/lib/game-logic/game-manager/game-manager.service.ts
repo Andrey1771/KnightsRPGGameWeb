@@ -43,7 +43,6 @@ export class GameManagerService {
       physics: {
         default: 'arcade',
         arcade: {
-          gravity: { },
         },
       },
       fps: {

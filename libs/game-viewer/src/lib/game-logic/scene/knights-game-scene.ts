@@ -90,44 +90,50 @@ export class KnightsGameScene extends Phaser.Scene {
     this._scoreText.setText(`Score: ${this._score}`);
   }
 
-  // Метод для обработки столкновения игрока с врагами
-  onPlayerCollideWithEnemy(player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, enemy: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile) {
-    enemy.destroy(); // Уничтожаем врага
-    this._player.getHit(1); // Отнимаем здоровье у игрока
-    this._hpText.setText(`HP: ${this._player.hp}`); // Обновляем отображение HP
+  onPlayerHit(playerObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
+              bulletObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile) {
+    const bullet = bulletObj as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+    bullet.destroy();
+    this._player.getHit(1);
+    this._hpText.setText(`HP: ${this._player.hp}`);
 
-    if (this._player.hp <= 0) { //TODO Оставить одну
-      this.playerDeath(); // Если HP закончилось — игрок умирает
+    if (this._player.hp <= 0) {
+      this.playerDeath();
     }
   }
 
-  // Обработчик столкновения пуль игрока с вражескими пулями
-  onBulletsCollide(playerBullet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, enemyBullet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile) {
-    playerBullet.destroy(); // Уничтожаем пулю игрока
-    enemyBullet.destroy();  // Уничтожаем пулю врага
+  onPlayerCollideWithEnemy(playerObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
+                           enemyObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile) {
+    const enemy = enemyObj as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+    enemy.destroy();
+    this._player.getHit(1);
+    this._hpText.setText(`HP: ${this._player.hp}`);
+
+    if (this._player.hp <= 0) {
+      this.playerDeath();
+    }
   }
 
-// Обработчик попадания пули во врага
-  onBulletHitEnemy(bullet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, enemy: (Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile)) {
-    bullet.destroy(); // Удаляем пулю
-    enemy.destroy();  // Удаляем врага
-    this.addScore(100); // +100 очков за убийство врага
+  onBulletsCollide(playerBulletObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
+                   enemyBulletObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile) {
+    const playerBullet = playerBulletObj as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+    const enemyBullet = enemyBulletObj as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+    playerBullet.destroy();
+    enemyBullet.destroy();
+  }
+
+  onBulletHitEnemy(bulletObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
+                   enemyObj: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile) {
+    const bullet = bulletObj as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+    const enemy = enemyObj as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+    bullet.destroy();
+    enemy.destroy();
+    this.addScore(100);
   }
 
   override update(time: number, delta: number) {
     this._player.update(time, delta);
     this._enemies.update();
-  }
-
-  onPlayerHit(player: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile, bullet: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Tilemaps.Tile) {
-    bullet.destroy(); // Удаляем пулю
-    this._player.getHit(1);
-
-    this._hpText.setText(`HP: ${this._player.hp}`); // Обновляем текст HP
-
-    if (this._player.hp <= 0) {
-      this.playerDeath();
-    }
   }
 
   playerDeath() {

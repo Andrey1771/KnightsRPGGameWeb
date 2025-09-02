@@ -5,6 +5,7 @@ import {Observable} from "rxjs";
 
 @Component({
   selector: 'knights-rpggame-web-game',
+  standalone: false,
   templateUrl: './game.component.html',
   styleUrls: ['./game.component.scss'],
 })
