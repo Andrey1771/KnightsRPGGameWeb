@@ -3,9 +3,6 @@ import { PhaserMusicService } from "../../services/phaser-music-service/phaser-m
 export class UIOverlayScene extends Phaser.Scene {
   private _phaserMusicService!: PhaserMusicService;
 
-  private musicEnabled = true;
-  private soundsEnabled = true;
-
   constructor(phaserMusicService: PhaserMusicService) {
     super({ key: 'UIOverlayScene', active: true });
     this._phaserMusicService = phaserMusicService;
@@ -15,7 +12,8 @@ export class UIOverlayScene extends Phaser.Scene {
     const { width } = this.scale;
 
     // Музыка кнопка
-    const musicButton = this.add.text(width - 140, 40, 'Музыка: Вкл', {
+    const isMusicMuted = this._phaserMusicService.getSettings().musicMuted;
+    const musicButton = this.add.text(width - 140, 40, isMusicMuted ? 'Музыка: Выкл' : 'Музыка: Вкл', {
       fontSize: '24px',
       fontFamily: 'Arial',
       color: '#ffffff',
@@ -24,13 +22,14 @@ export class UIOverlayScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive();
 
     musicButton.on('pointerdown', () => {
-      this.musicEnabled = !this.musicEnabled;
-      musicButton.setText(this.musicEnabled ? 'Музыка: Вкл' : 'Музыка: Выкл');
-      this._phaserMusicService.toggleMusic(this.musicEnabled);
+      this._phaserMusicService.toggleMusic();
+      const isMusicMuted = this._phaserMusicService.getSettings().musicMuted;
+      musicButton.setText(isMusicMuted ? 'Музыка: Выкл' : 'Музыка: Вкл');
     });
 
     // Звуки кнопка
-    const soundsButton = this.add.text(width - 140, 100, 'Звуки: Вкл', {
+    const isSoundsMuted = this._phaserMusicService.getSettings().soundsMuted;
+    const soundsButton = this.add.text(width - 140, 100, isSoundsMuted ?  'Звуки: Выкл' : 'Звуки: Вкл', {
       fontSize: '24px',
       fontFamily: 'Arial',
       color: '#ffffff',
@@ -39,9 +38,9 @@ export class UIOverlayScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive();
 
     soundsButton.on('pointerdown', () => {
-      this.soundsEnabled = !this.soundsEnabled;
-      soundsButton.setText(this.soundsEnabled ? 'Звуки: Вкл' : 'Звуки: Выкл');
-      this._phaserMusicService.toggleSounds(this.soundsEnabled);
+      this._phaserMusicService.toggleSounds();
+      const isSoundsMuted = this._phaserMusicService.getSettings().soundsMuted;
+      soundsButton.setText(isSoundsMuted ?  'Звуки: Выкл' : 'Звуки: Вкл');
     });
 
     //TODO Полный экран
@@ -56,7 +55,5 @@ export class UIOverlayScene extends Phaser.Scene {
         this.scale.stopFullscreen();
       }
     });
-
-    this.scene.bringToTop()
   }
 }

@@ -15,6 +15,8 @@ export class SettingsScene extends Phaser.Scene {
   }
 
   create() {
+    this.currentVolume = this._phaserMusicService.getSettings().volume;
+
     const { width, height } = this.scale;
 
     this.add.text(width / 2, height / 4, 'Настройки', {
