@@ -87,9 +87,12 @@ export class LobbyScene extends Phaser.Scene {
       const isLeader = connectionId === leaderConnectionId;
       const color = isLeader ? '#ffcc00' : '#00ff00';
       const leaderIcon = isLeader ? ' 🔰' : '';
+
+      // Текст игрока
+      const y = startY + index * 40;
       const playerText = this.add.text(
         startX,
-        startY + index * 30,
+        y,
         `${connectionId}${leaderIcon}`,
         {
           fontSize: '24px',
@@ -99,6 +102,26 @@ export class LobbyScene extends Phaser.Scene {
       ).setOrigin(0.5);
 
       this.playerListTexts.push(playerText);
+
+      // Если текущий игрок — лидер, добавляем кнопку "Сделать лидером" для других игроков
+      if (this._signalRService.connectionId === leaderConnectionId && !isLeader) {
+        const makeLeaderButton = this.add.text(startX + 200, y, 'Сделать лидером', {
+          fontSize: '20px',
+          fontFamily: 'Arial',
+          color: '#ffffff',
+          backgroundColor: '#444444',
+          padding: { x: 10, y: 5 }
+        }).setOrigin(0.5).setInteractive();
+
+        makeLeaderButton.on('pointerover', () => makeLeaderButton.setStyle({ backgroundColor: '#666666' }));
+        makeLeaderButton.on('pointerout', () => makeLeaderButton.setStyle({ backgroundColor: '#444444' }));
+        makeLeaderButton.on('pointerdown', () => {
+          this._signalRService.connection.invoke("ChangeLeader", this.lobbyName, connectionId)
+            .catch(err => console.error("Ошибка смены лидера:", err));
+        });
+
+        this.playerListTexts.push(makeLeaderButton);
+      }
     });
   }
 

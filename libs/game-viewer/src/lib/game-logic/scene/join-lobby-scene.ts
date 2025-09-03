@@ -19,8 +19,6 @@ export class JoinLobbyScene extends Phaser.Scene {
   }
 
   async create() {
-    await this._signalRService.startConnection();
-
     const { width, height } = this.scale;
 
     this.cameras.main.setBackgroundColor('#1a1a1a');
@@ -41,6 +39,17 @@ export class JoinLobbyScene extends Phaser.Scene {
         return;
       }
 
+      await this._signalRService.startConnection();
+
+      this._signalRService.connection.on("Error", (errorMessage: string) => {
+        alert(`Ошибка: ${errorMessage}`);
+      });
+
+      this._signalRService.connection.on("PlayerJoined", (playerId: string) => {
+        const lobbyName = this.inputField.getValue();
+        this.scene.start('LobbyScene', { lobbyName });
+      });
+
       await this._signalRService.connection.invoke("JoinRoom", lobbyName);
       this.joinButton.destroy();
     });
@@ -49,15 +58,6 @@ export class JoinLobbyScene extends Phaser.Scene {
       this.inputField.destroy();
       this.backButton.destroy();
       this.scene.start('MainMenuScene');
-    });
-
-    this._signalRService.connection.on("Error", (errorMessage: string) => {
-      alert(`Ошибка: ${errorMessage}`);
-    });
-
-    this._signalRService.connection.on("PlayerJoined", (playerId: string) => {
-      const lobbyName = this.inputField.getValue();
-      this.scene.start('LobbyScene', { lobbyName });
     });
   }
 
