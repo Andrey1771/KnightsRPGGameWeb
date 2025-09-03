@@ -105,7 +105,7 @@ export class PhaserMusicService {
   public playSound(track: SoundsTrack) {
     const sound = this.sounds.get(track);
     if (!sound || this.isSoundsMuted) return;
-    
+
     sound.play();
   }
 

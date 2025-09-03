@@ -70,7 +70,7 @@ export class MultiplayerScene extends Phaser.Scene {
     this._setupControls();
     this._setupUI();
 
-    await this._registerPlayer();
+    this._registerPlayer();
 
     this._spawnInitialPlayers();
     this._spawnInitialBots();
@@ -143,8 +143,8 @@ export class MultiplayerScene extends Phaser.Scene {
     this.fpsText = this.add.text(10, 10, '', { font: '16px Courier' });
   }
 
-  private async _registerPlayer() {
-    this._connectionId = await this._signalRService.connection.invoke("GetConnectionId");
+  private _registerPlayer() { // TODO Убрать
+    this._connectionId = this._signalRService.connectionId ?? "";
   }
 
   private _spawnInitialPlayers() {
