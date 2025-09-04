@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { SignalRService } from "../../services/signal-r-service/signal-r-service";
 import { PhaserInputText } from '../../phaser-ui/phaser-input-text';
+import {LocalStorageService} from "ngx-webstorage";
 
 export class JoinLobbyScene extends Phaser.Scene {
   private inputText!: Phaser.GameObjects.Text;
@@ -10,12 +11,14 @@ export class JoinLobbyScene extends Phaser.Scene {
   private backButton!: Phaser.GameObjects.Text;
 
   private _signalRService!: SignalRService;
+  private _storage!: LocalStorageService;
 
   private inputField!: PhaserInputText;
 
-  constructor(signalRService: SignalRService) {
+  constructor(signalRService: SignalRService, storage: LocalStorageService) {
     super({ key: 'JoinLobbyScene' });
     this._signalRService = signalRService;
+    this._storage = storage;
   }
 
   async create() {
@@ -53,7 +56,7 @@ export class JoinLobbyScene extends Phaser.Scene {
         this.scene.start('LobbyScene', { lobbyName });
       });
 
-      await this._signalRService.connection.invoke("JoinRoom", lobbyName);
+      await this._signalRService.connection.invoke("JoinRoom", lobbyName, this._storage.retrieve("playerName"));
     });
 
     this.backButton = this.createButtonElement(width / 2, height * 0.7, 'Назад в меню', () => {

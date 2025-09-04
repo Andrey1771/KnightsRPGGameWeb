@@ -1,10 +1,7 @@
 import * as Phaser from 'phaser';
 import { SignalRService } from "../../services/signal-r-service/signal-r-service";
-
-interface PlayerInfoResponseDto {
-  connectionIds: string[],
-  leaderConnectionId: string
-}
+import { PlayerInfoResponseDto } from '../../dto/player-info-response-dto';
+import { PlayerInfo } from '../../models/player-info';
 
 export class LobbyScene extends Phaser.Scene {
   private lobbyNameText!: Phaser.GameObjects.Text;
@@ -67,7 +64,7 @@ export class LobbyScene extends Phaser.Scene {
 
     // Обновление списка игроков
     this._signalRService.connection.on("ReceivePlayerList", (dto: PlayerInfoResponseDto) => {
-      this.updatePlayerList(dto.connectionIds, dto.leaderConnectionId);
+      this.updatePlayerList(dto.playerInfos, dto.leaderConnectionId);
       this.updateLeaderUI(dto.leaderConnectionId);
     });
 
@@ -76,7 +73,7 @@ export class LobbyScene extends Phaser.Scene {
       .catch(err => console.error("Ошибка запроса списка игроков:", err));
   }
 
-  updatePlayerList(connectionIds: string[], leaderConnectionId: string) {
+  updatePlayerList(playerInfos: PlayerInfo[], leaderConnectionId: string) {
     // Удаляем старые элементы
     this.playerListTexts.forEach(text => text.destroy());
     this.playerListTexts = [];
@@ -84,8 +81,8 @@ export class LobbyScene extends Phaser.Scene {
     const startX = this.scale.width / 2;
     const startY = this.scale.height * 0.3;
 
-    connectionIds.forEach((connectionId, index) => {
-      const isLeader = connectionId === leaderConnectionId;
+    playerInfos.forEach((player, index) => {
+      const isLeader = player.connectionId === leaderConnectionId;
       const color = isLeader ? '#ffcc00' : '#00ff00';
       const leaderIcon = isLeader ? ' 🔰' : '';
 
@@ -94,7 +91,7 @@ export class LobbyScene extends Phaser.Scene {
       const playerText = this.add.text(
         startX,
         y,
-        `${connectionId}${leaderIcon}`,
+        `${player.name}${leaderIcon}`,
         {
           fontSize: '24px',
           fontFamily: 'Arial',
@@ -117,7 +114,7 @@ export class LobbyScene extends Phaser.Scene {
         makeLeaderButton.on('pointerover', () => makeLeaderButton.setStyle({ backgroundColor: '#666666' }));
         makeLeaderButton.on('pointerout', () => makeLeaderButton.setStyle({ backgroundColor: '#444444' }));
         makeLeaderButton.on('pointerdown', () => {
-          this._signalRService.connection.invoke("ChangeLeader", this.lobbyName, connectionId)
+          this._signalRService.connection.invoke("ChangeLeader", this.lobbyName, player.connectionId)
             .catch(err => console.error("Ошибка смены лидера:", err));
         });
 

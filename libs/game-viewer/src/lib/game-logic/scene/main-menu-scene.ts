@@ -38,8 +38,7 @@ export class MainMenuScene extends Phaser.Scene {
     const centerX = width / 2;
 
     this.createButton(centerX, startY, 'Начать игру', () => {
-      const playerName = this.playerNameInput.text || 'Игрок';
-      this.scene.start('main', { playerName });
+      this.scene.start('main');
     });
 
     this.createButton(centerX, startY + buttonSpacing, 'Создать игру', () =>

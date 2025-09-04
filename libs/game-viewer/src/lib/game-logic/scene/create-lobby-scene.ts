@@ -1,6 +1,8 @@
 import * as Phaser from 'phaser';
 import { SignalRService } from "../../services/signal-r-service/signal-r-service";
 import { PhaserInputText } from '../../phaser-ui/phaser-input-text';
+import { LocalStorageService } from "ngx-webstorage";
+import { PlayerInfoResponseDto } from "../../dto/player-info-response-dto";
 
 export class CreateLobbyScene extends Phaser.Scene {
   private inputField!: PhaserInputText;
@@ -11,10 +13,12 @@ export class CreateLobbyScene extends Phaser.Scene {
   private currentLobbyName = '';
 
   private _signalRService!: SignalRService;
+  private _storage!: LocalStorageService;
 
-  constructor(signalRService: SignalRService) {
+  constructor(signalRService: SignalRService, storage: LocalStorageService) {
     super({ key: 'CreateLobbyScene' });
     this._signalRService = signalRService;
+    this._storage = storage;
   }
 
   create() {
@@ -84,23 +88,7 @@ export class CreateLobbyScene extends Phaser.Scene {
       this.setLobbyScene(roomName);
     });
 
-    this._signalRService.connection.on("ReceivePlayerList", (players: string[]) => {
-      console.log("Текущие игроки:", players);
-      this.updatePlayerList(players);
-    });
-
-    this._signalRService.connection.on("PlayerJoined", (connectionId: string) => {
-      console.log("Новый игрок присоединился:", connectionId);
-      this._signalRService.connection.invoke("UpdatePlayerList", this.currentLobbyName);
-    });
-
-    this._signalRService.connection.on("PlayerLeft", (connectionId: string) => {
-      console.log("Игрок покинул:", connectionId);
-      this._signalRService.connection.invoke("UpdatePlayerList", this.currentLobbyName);
-    });
-
-    await this._signalRService.connection.invoke("CreateRoom", roomName, maxPlayers);
-    await this._signalRService.connection.invoke("UpdatePlayerList", roomName);
+    await this._signalRService.connection.invoke("CreateRoom", roomName, this._storage.retrieve("playerName"), maxPlayers);
   }
 
   updatePlayerList(players: string[]) {
