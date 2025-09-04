@@ -79,13 +79,16 @@ export class GameManagerService {
     this.phaserGame = new Phaser.Game(this.config);
 
     this.phaserGame.scene.add('PreloaderScene', new PreloaderScene());
-    this.phaserGame.scene.add('MainMenuScene', new MainMenuScene(this._phaserMusicService, this._storage));
+    this.phaserGame.scene.add('MainMenuScene', new MainMenuScene(this._phaserMusicService));
     this.phaserGame.scene.add('CreateLobbyScene', new CreateLobbyScene(this._signalRService));
     this.phaserGame.scene.add('LobbyScene', new LobbyScene(this._signalRService));
     this.phaserGame.scene.add('MultiplayerScene', new MultiplayerScene(this._signalRService, this._phaserMusicService));
     this.phaserGame.scene.add('JoinLobbyScene', new JoinLobbyScene(this._signalRService));
     this.phaserGame.scene.add('SettingsScene', new SettingsScene(this._phaserMusicService));
-    this.phaserGame.scene.add('UIOverlayScene', new UIOverlayScene(this._phaserMusicService));
+    this.phaserGame.scene.add('UIOverlayScene', new UIOverlayScene(this._phaserMusicService, this._storage), false,{
+      showName: true,
+      readOnly: true
+    });
 
   }
 }

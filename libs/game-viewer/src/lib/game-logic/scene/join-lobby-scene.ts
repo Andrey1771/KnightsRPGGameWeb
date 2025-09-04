@@ -19,6 +19,8 @@ export class JoinLobbyScene extends Phaser.Scene {
   }
 
   async create() {
+    this.scene.launch('UIOverlayScene', { showName: true, readOnly: true });
+
     const { width, height } = this.scale;
 
     this.cameras.main.setBackgroundColor('#1a1a1a');

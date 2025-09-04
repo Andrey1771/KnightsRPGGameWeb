@@ -27,6 +27,7 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   create() {
+
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor('#1a1a1a');
 

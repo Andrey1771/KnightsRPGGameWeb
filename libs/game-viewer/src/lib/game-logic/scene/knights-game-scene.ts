@@ -19,6 +19,8 @@ export class KnightsGameScene extends Phaser.Scene {
   }
 
   create() {
+    this.scene.launch('UIOverlayScene', { showName: false, readOnly: true });
+
     const { width, height } = this.scale;
     this.scale.on('resize', this.resize, this);
 
