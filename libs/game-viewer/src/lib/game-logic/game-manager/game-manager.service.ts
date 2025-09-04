@@ -11,6 +11,8 @@ import { PhaserMusicService } from '../../services/phaser-music-service/phaser-m
 import { PreloaderScene } from "../scene/preloader-scene";
 import { UIOverlayScene } from '../scene/ui-overlay-scene';
 
+import RexUIPlugin from 'phaser3-rex-plugins/templates/ui/ui-plugin'
+
 @Injectable({
   providedIn: 'root',
 })
@@ -32,6 +34,15 @@ export class GameManagerService {
       width: window.innerWidth,
       height: window.innerHeight,
       scene: [PreloaderScene, MainMenuScene, KnightsGameScene, JoinLobbyScene, SettingsScene, UIOverlayScene],
+      plugins: {
+        scene: [
+          {
+            key: 'rexUI',
+            plugin: RexUIPlugin,
+            mapping: 'rexUI'
+          }
+        ]
+      },
       scale: {
         mode: Phaser.Scale.FIT, // сохраняет пропорции и масштабирует
         autoCenter: Phaser.Scale.CENTER_BOTH, // центрирует игру
@@ -39,6 +50,18 @@ export class GameManagerService {
         height: targetHeight
       },
       parent: 'gameContainer',
+      // fullscreenTarget: gameContainer, // For fullscreen
+      dom: {
+        createContainer: true
+      },
+      input: {
+        mouse: {
+          target: 'gameContainer'
+        },
+        touch: {
+          target: 'gameContainer'
+        },
+      },
       physics: {
         default: 'arcade',
         arcade: {

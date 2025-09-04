@@ -47,11 +47,11 @@ export class JoinLobbyScene extends Phaser.Scene {
 
       this._signalRService.connection.on("PlayerJoined", (playerId: string) => {
         const lobbyName = this.inputField.getValue();
+        this.joinButton.destroy();
         this.scene.start('LobbyScene', { lobbyName });
       });
 
       await this._signalRService.connection.invoke("JoinRoom", lobbyName);
-      this.joinButton.destroy();
     });
 
     this.backButton = this.createButtonElement(width / 2, height * 0.7, 'Назад в меню', () => {
