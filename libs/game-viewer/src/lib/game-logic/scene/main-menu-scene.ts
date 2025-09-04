@@ -1,16 +1,17 @@
+import InputText from 'phaser3-rex-plugins/plugins/inputtext';
 import { MusicTrack, PhaserMusicService } from '../../services/phaser-music-service/phaser-music-service';
 import { generateFunnyNick } from '../../utils/nick-generator';
-
-const targetWidth = 640;
-const targetHeight = 960;
+import { LocalStorageService } from 'ngx-webstorage';
 
 export class MainMenuScene extends Phaser.Scene {
   private _phaserMusicService!: PhaserMusicService;
+  private _storage!: LocalStorageService;
   private playerNameInput!: any; // rexUI InputText
 
-  constructor(phaserMusicService: PhaserMusicService) {
+  constructor(phaserMusicService: PhaserMusicService, storage: LocalStorageService) {
     super({ key: 'MainMenuScene' });
     this._phaserMusicService = phaserMusicService;
+    this._storage = storage;
   }
 
   create() {
@@ -34,14 +35,17 @@ export class MainMenuScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Ник + кнопка генерации (слева сверху)
+    // Загружаем сохранённый ник (всегда строка)
+    const savedName = String(this._storage.retrieve('playerName') || '');
+
+    // Поле ввода ника (слева сверху)
     this.playerNameInput = this.rexUI.add.inputText({
       x: 20,
       y: 40,
       width: 250,
       height: 40,
       type: 'text',
-      text: '',
+      text: savedName,
       fontSize: '20px',
       color: '#ffffff',
       backgroundColor: '#000000',
@@ -50,6 +54,12 @@ export class MainMenuScene extends Phaser.Scene {
       selectAll: false,
     }).setOrigin(0, 0.5);
 
+    // При вводе сохраняем (только строку)
+    this.playerNameInput.on('textchange', (inputText: InputText) => {
+      this._storage.store('playerName', String(inputText.text));
+    });
+
+    // Кнопка генерации ника 🎲
     const generateButton = this.add.text(290, 40, '🎲', {
       fontSize: '24px',
       fontFamily: 'Arial',
@@ -63,16 +73,17 @@ export class MainMenuScene extends Phaser.Scene {
     generateButton.on('pointerdown', () => {
       const funnyNick = generateFunnyNick();
       this.playerNameInput.text = funnyNick;
+      this._storage.store('playerName', String(funnyNick));
     });
 
     // Кнопки меню (по центру, вертикально)
-    const buttonSpacing = 80; // расстояние между кнопками
-    const startY = height * 0.4; // первая кнопка чуть ниже центра
+    const buttonSpacing = 80;
+    const startY = height * 0.4;
     const centerX = width / 2;
 
     this.createButton(centerX, startY, 'Начать игру', () => {
       const playerName = this.playerNameInput.text || 'Игрок';
-      console.log('Игрок:', playerName);
+      this._storage.store('playerName', String(playerName));
       this.scene.start('main', { playerName });
     });
 

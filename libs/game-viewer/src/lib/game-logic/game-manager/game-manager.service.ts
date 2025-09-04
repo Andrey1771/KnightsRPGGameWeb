@@ -12,6 +12,7 @@ import { PreloaderScene } from "../scene/preloader-scene";
 import { UIOverlayScene } from '../scene/ui-overlay-scene';
 
 import RexUIPlugin from 'phaser3-rex-plugins/templates/ui/ui-plugin'
+import {LocalStorageService} from "ngx-webstorage";
 
 @Injectable({
   providedIn: 'root',
@@ -20,7 +21,7 @@ export class GameManagerService {
   private phaserGame!: Phaser.Game;
   private config!: Phaser.Types.Core.GameConfig;
 
-  constructor(private _signalRService: SignalRService, private _phaserMusicService: PhaserMusicService) {
+  constructor(private _signalRService: SignalRService, private _phaserMusicService: PhaserMusicService, private _storage: LocalStorageService) {
     this.initConfiguration();
   }
 
@@ -78,7 +79,7 @@ export class GameManagerService {
     this.phaserGame = new Phaser.Game(this.config);
 
     this.phaserGame.scene.add('PreloaderScene', new PreloaderScene());
-    this.phaserGame.scene.add('MainMenuScene', new MainMenuScene(this._phaserMusicService));
+    this.phaserGame.scene.add('MainMenuScene', new MainMenuScene(this._phaserMusicService, this._storage));
     this.phaserGame.scene.add('CreateLobbyScene', new CreateLobbyScene(this._signalRService));
     this.phaserGame.scene.add('LobbyScene', new LobbyScene(this._signalRService));
     this.phaserGame.scene.add('MultiplayerScene', new MultiplayerScene(this._signalRService, this._phaserMusicService));
