@@ -1,6 +1,7 @@
 import InputText from 'phaser3-rex-plugins/plugins/inputtext';
 import { PhaserMusicService } from "../../services/phaser-music-service/phaser-music-service";
 import { LocalStorageService } from "ngx-webstorage";
+import { generateFunnyNick } from '../../utils/nick-generator';
 
 interface UIOverlayData {
   showName?: boolean;
@@ -88,6 +89,32 @@ export class UIOverlayScene extends Phaser.Scene {
       if (!data.readOnly) {
         this.playerNameInput.on('textchange', (input: InputText) => {
           this._storage.store('playerName', String(input.text));
+        });
+
+        // Кнопка генерации ника
+        const padding = 10; // отступ между полем и кнопкой
+        const generateButton = this.add.text(
+          this.playerNameInput.x + this.playerNameInput.width + padding,
+          this.playerNameInput.y,
+          '🎲',
+          {
+            fontSize: '24px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            backgroundColor: '#000000',
+            padding: { x: 10, y: 5 },
+          }
+        )
+          .setOrigin(0, 0.5)
+          .setInteractive();
+
+        generateButton.on('pointerover', () => generateButton.setStyle({ backgroundColor: '#333333' }));
+        generateButton.on('pointerout', () => generateButton.setStyle({ backgroundColor: '#000000' }));
+        generateButton.on('pointerdown', () => {
+          if (!this.playerNameInput) return;
+          const funnyNick = generateFunnyNick();
+          this.playerNameInput.text = funnyNick;
+          this._storage.store('playerName', String(funnyNick));
         });
       }
     }
