@@ -54,6 +54,14 @@ export class MultiplayerScene extends Phaser.Scene {
   private _scoreText!: Phaser.GameObjects.Text;
   private fpsText: any;
 
+
+  // Поле для хранения элементов меню, чтобы их потом убрать
+  private _pauseOverlay?: Phaser.GameObjects.Rectangle;
+  private _pausePanel?: Phaser.GameObjects.Rectangle;
+  private _pauseContinueButton?: Phaser.GameObjects.Text;
+  private _pauseMenuButton?: Phaser.GameObjects.Text;
+  private _pauseText?: Phaser.GameObjects.Text;
+
   constructor(signalRService: SignalRService, phaserMusicService: PhaserMusicService) {
     super({ key: 'MultiplayerScene' });
     this._signalRService = signalRService;
@@ -194,6 +202,13 @@ export class MultiplayerScene extends Phaser.Scene {
     on("PlayerDied", id => this._handlePlayerDeath(id));
     on("ReceiveBotPosition", (id, pos) => this._updateBotPosition(id, pos));
     on("UpdateScore", score => this._updateScore(score));
+    on("GamePaused", (isPaused: boolean) => {
+      if (isPaused) {
+        this._showPauseMenu();
+      } else {
+        this._hidePauseMenu();
+      }
+    });
 
     on("GameOver", (score: number) => {
       this._showGameOverMenu(score);
@@ -208,6 +223,62 @@ export class MultiplayerScene extends Phaser.Scene {
         }
       }, 300); // немного позже, чтобы не перекрывало UI
     });
+  }
+
+  private _showPauseMenu() {
+    this.scene.launch('UIOverlayScene', { showPauseButton: false, showName: false, readOnly: true  });
+
+    const { width, height } = this.scale;
+
+    this._pauseOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
+
+    this._pausePanel = this.add.rectangle(width / 2, height / 2, 400, 200, 0x222222, 0.9).setStrokeStyle(2, 0xffffff);
+
+    this._pauseText = this.add.text(width / 2, height / 2 - 60, "Пауза", {
+      font: '28px Arial',
+      color: '#ffffff',
+    }).setOrigin(0.5);
+
+    this._pauseContinueButton = this.add.text(width / 2, height / 2 - 10, "Продолжить", {
+      font: '22px Arial',
+      color: '#ffffff',
+      backgroundColor: '#444444',
+      padding: { x: 20, y: 10 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    this._pauseContinueButton.on('pointerover', () => this._pauseContinueButton!.setStyle({ backgroundColor: '#666666' }));
+    this._pauseContinueButton.on('pointerout', () => this._pauseContinueButton!.setStyle({ backgroundColor: '#444444' }));
+    this._pauseContinueButton.on('pointerdown', async () => {
+      await this._signalRService.connection.invoke("TogglePause", this._signalRService.currentRoomName);
+      this._hidePauseMenu();
+      this._pauseContinueButton?.destroy();
+    });
+
+    this._pauseMenuButton = this.add.text(width / 2, height / 2 + 50, "В меню", {
+      font: '22px Arial',
+      color: '#ffffff',
+      backgroundColor: '#444444',
+      padding: { x: 20, y: 10 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    this._pauseMenuButton.on('pointerover', () => this._pauseMenuButton!.setStyle({ backgroundColor: '#666666' }));
+    this._pauseMenuButton.on('pointerout', () => this._pauseMenuButton!.setStyle({ backgroundColor: '#444444' }));
+    this._pauseMenuButton.on('pointerdown', async () => {
+      await this._signalRService.stopConnection();
+      this.events.removeAllListeners();
+      this._pauseMenuButton?.destroy();
+      this.scene.start('MainMenuScene');
+    });
+  }
+
+  private _hidePauseMenu() {
+    this._pauseOverlay?.destroy();
+    this._pausePanel?.destroy();
+    this._pauseContinueButton?.destroy();
+    this._pauseMenuButton?.destroy();
+    this._pauseText?.destroy();
+
+    this.scene.launch('UIOverlayScene', { showPauseButton: true, showName: false, readOnly: true  });
   }
 
   private _spawnBot(botId: string, state: any) {
