@@ -10,7 +10,7 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   create() {
-    this.scene.launch('UIOverlayScene', { showName: true, readOnly: false });
+    this.scene.launch('UIOverlayScene', { showPauseButton: false, showName: true, readOnly: false });
 
     this._phaserMusicService.init(this);
     this._phaserMusicService.playMusic(MusicTrack.MainTheme);

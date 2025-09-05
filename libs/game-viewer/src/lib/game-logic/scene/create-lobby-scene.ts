@@ -22,7 +22,7 @@ export class CreateLobbyScene extends Phaser.Scene {
   }
 
   create() {
-    this.scene.launch('UIOverlayScene', { showName: true, readOnly: true });
+    this.scene.launch('UIOverlayScene', { showPauseButton: false, showName: true, readOnly: true });
 
     const { width, height } = this.scale;
 

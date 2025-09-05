@@ -15,7 +15,7 @@ export class SettingsScene extends Phaser.Scene {
   }
 
   create() {
-    this.scene.launch('UIOverlayScene', { showName: false, readOnly: true });
+    this.scene.launch('UIOverlayScene', { showPauseButton: false, showName: false, readOnly: true });
 
     this.currentVolume = this._phaserMusicService.getSettings().volume;
 

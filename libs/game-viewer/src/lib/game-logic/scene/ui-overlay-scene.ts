@@ -2,19 +2,25 @@ import InputText from 'phaser3-rex-plugins/plugins/inputtext';
 import { PhaserMusicService } from "../../services/phaser-music-service/phaser-music-service";
 import { LocalStorageService } from "ngx-webstorage";
 import { generateFunnyNick } from '../../utils/nick-generator';
+import {SignalRService} from "../../services/signal-r-service/signal-r-service";
 
 interface UIOverlayData {
   showName?: boolean;
   readOnly?: boolean;
+  showPauseButton?: boolean;
 }
 
 export class UIOverlayScene extends Phaser.Scene {
   private _phaserMusicService!: PhaserMusicService;
   private _storage!: LocalStorageService;
-  private playerNameInput?: InputText;
+  private _signalRService!: SignalRService;
 
-  constructor(phaserMusicService: PhaserMusicService, storage: LocalStorageService) {
+  private playerNameInput?: InputText;
+  private pauseButton?: Phaser.GameObjects.Text;
+
+  constructor(signalRService: SignalRService, phaserMusicService: PhaserMusicService, storage: LocalStorageService) {
     super({ key: 'UIOverlayScene', active: true });
+    this._signalRService = signalRService;
     this._phaserMusicService = phaserMusicService;
     this._storage = storage;
   }
@@ -83,7 +89,7 @@ export class UIOverlayScene extends Phaser.Scene {
         backgroundColor: '#000000',
         placeholder: 'Имя игрока',
         maxLength: 20,
-        readOnly: !!data.readOnly, // можно ли редактировать
+        readOnly: !!data.readOnly,
       }).setOrigin(0, 0.5);
 
       if (!data.readOnly) {
@@ -92,9 +98,8 @@ export class UIOverlayScene extends Phaser.Scene {
         });
 
         // Кнопка генерации ника
-        const padding = 10; // отступ между полем и кнопкой
         const generateButton = this.add.text(
-          this.playerNameInput.x + this.playerNameInput.width + padding,
+          this.playerNameInput.x + this.playerNameInput.width + 10,
           this.playerNameInput.y,
           '🎲',
           {
@@ -117,6 +122,39 @@ export class UIOverlayScene extends Phaser.Scene {
           this._storage.store('playerName', String(funnyNick));
         });
       }
+    }
+
+    // Кнопка паузы под ником (если разрешено в data)
+    if (data?.showPauseButton) {
+      this.pauseButton = this.add.text(
+        20,
+        120,
+        '⏸ Пауза',
+        {
+          fontSize: '24px',
+          fontFamily: 'Arial',
+          color: '#ffffff',
+          backgroundColor: '#000000',
+          padding: { x: 15, y: 8 },
+        }
+      )
+        .setOrigin(0, 0.5)
+        .setInteractive();
+
+      this.pauseButton.on('pointerover', () =>
+        this.pauseButton?.setStyle({ backgroundColor: '#333333' })
+      );
+      this.pauseButton.on('pointerout', () =>
+        this.pauseButton?.setStyle({ backgroundColor: '#000000' })
+      );
+      this.pauseButton.on('pointerdown', async () => {
+        const room = this._signalRService.currentRoomName;
+        if (!room) {
+          console.warn("Нет названия комнаты в SignalRService");
+          return;
+        }
+        await this._signalRService.connection.invoke("TogglePause", room);
+      });
     }
   }
 }

@@ -7,6 +7,8 @@ import * as signalR from '@microsoft/signalr';
 export class SignalRService {
   private hubConnection!: signalR.HubConnection;
 
+  public currentRoomName: string | null = null; //TODO Private
+
   public startConnection(): Promise<void> {
     this.hubConnection = new signalR.HubConnectionBuilder()
       .withUrl("https://localhost:7172/gamehub", {
@@ -19,6 +21,7 @@ export class SignalRService {
   }
 
   public stopConnection(): Promise<void> {
+    this.currentRoomName = null; // сбросим при выходе
     return this.hubConnection.stop();
   }
 

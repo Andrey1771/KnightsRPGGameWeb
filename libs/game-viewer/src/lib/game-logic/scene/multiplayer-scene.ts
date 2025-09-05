@@ -66,7 +66,7 @@ export class MultiplayerScene extends Phaser.Scene {
   }
 
   async create() {
-    this.scene.launch('UIOverlayScene', { showName: false, readOnly: true });
+    this.scene.launch('UIOverlayScene', { showPauseButton: true, showName: false, readOnly: true  });
 
     this._initializeScene();
     this._setupControls();

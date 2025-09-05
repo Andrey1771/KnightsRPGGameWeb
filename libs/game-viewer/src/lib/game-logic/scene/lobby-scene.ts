@@ -21,6 +21,7 @@ export class LobbyScene extends Phaser.Scene {
 
   init(data: any) {
     this.lobbyName = data.lobbyName || 'Лобби';
+    this._signalRService.currentRoomName = this.lobbyName;
   }
 
   create() {
