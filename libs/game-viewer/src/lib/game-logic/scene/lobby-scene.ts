@@ -53,6 +53,7 @@ export class LobbyScene extends Phaser.Scene {
     // Обработчик старта игры
     this._signalRService.connection.on("GameStarted", (initialPositions, bots) => {
       console.log('Игра началась!');
+
       this.scene.start('MultiplayerScene', { initialPositions, bots });
     });
 

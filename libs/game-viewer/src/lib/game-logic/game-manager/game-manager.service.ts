@@ -13,6 +13,8 @@ import { UIOverlayScene } from '../scene/ui-overlay-scene';
 
 import RexUIPlugin from 'phaser3-rex-plugins/templates/ui/ui-plugin'
 import {LocalStorageService} from "ngx-webstorage";
+import { SpaceBackgroundScene } from '../scene/space-background-scene';
+import {GameOverScene} from "../scene/game-over-scene";
 
 @Injectable({
   providedIn: 'root',
@@ -26,15 +28,15 @@ export class GameManagerService {
   }
 
   private initConfiguration(): void {
-    const targetWidth = 640;
-    const targetHeight = 960;
+    const targetWidth = 1280;
+    const targetHeight = 720;
 
     this.config = {
       type: Phaser.WEBGL,
       backgroundColor: '#000000',
       width: window.innerWidth,
       height: window.innerHeight,
-      scene: [PreloaderScene, MainMenuScene, KnightsGameScene, JoinLobbyScene, SettingsScene, UIOverlayScene],
+      scene: [PreloaderScene, SpaceBackgroundScene, MainMenuScene, KnightsGameScene, JoinLobbyScene, SettingsScene, UIOverlayScene],
       plugins: {
         scene: [
           {
@@ -90,6 +92,7 @@ export class GameManagerService {
       readOnly: true,
       showPauseButton: false
     });
+    this.phaserGame.scene.add('GameOverScene', new GameOverScene(this._signalRService));
 
   }
 }

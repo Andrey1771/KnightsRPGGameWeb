@@ -76,6 +76,9 @@ export class MultiplayerScene extends Phaser.Scene {
   async create() {
     this.scene.launch('UIOverlayScene', { showPauseButton: true, showName: false, readOnly: true  });
 
+    this.scene.launch('SpaceBackgroundScene');
+    this.scene.sendToBack('SpaceBackgroundScene');
+
     this._initializeScene();
     this._setupControls();
     this._setupUI();
@@ -92,8 +95,8 @@ export class MultiplayerScene extends Phaser.Scene {
 
   private _initializeScene() {
     const { width, height } = this.scale;
-    this._background = this.add.image(width / 2, height / 2, 'background');
-    this._background.setDisplaySize(width, height);
+    //this._background = this.add.image(width / 2, height / 2, 'background');
+    //this._background.setDisplaySize(width, height);
   }
 
   private _setupControls() {
@@ -161,6 +164,7 @@ export class MultiplayerScene extends Phaser.Scene {
     Object.entries(this._initialPositions).forEach(([id, pos]) => {
       if (id === this._connectionId) {
         this._playerSprite.setPosition(pos.x, pos.y);
+        //this.cameras.main.startFollow(this._playerSprite);
       } else {
         const remote = this.add.sprite(pos.x, pos.y, 'player').setScale(0.25).setTint(0x00ff00);
         this._remotePlayers.set(id, remote);
@@ -205,8 +209,10 @@ export class MultiplayerScene extends Phaser.Scene {
     on("GamePaused", (isPaused: boolean) => {
       if (isPaused) {
         this._showPauseMenu();
+        this.scene.pause('SpaceBackgroundScene');
       } else {
         this._hidePauseMenu();
+        this.scene.resume('SpaceBackgroundScene');
       }
     });
 
@@ -226,59 +232,120 @@ export class MultiplayerScene extends Phaser.Scene {
   }
 
   private _showPauseMenu() {
-    this.scene.launch('UIOverlayScene', { showPauseButton: false, showName: false, readOnly: true  });
-
     const { width, height } = this.scale;
 
-    this._pauseOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
+    // Создаем только если еще не созданы
+    if (!this._pauseOverlay) {
+      this._pauseOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
+      this._pausePanel = this.add.rectangle(width / 2, height / 2, 400, 200, 0x222222, 0.9).setStrokeStyle(2, 0xffffff);
+      this._pauseText = this.add.text(width / 2, height / 2 - 60, "Пауза", { font: '28px Arial', color: '#ffffff' }).setOrigin(0.5);
 
-    this._pausePanel = this.add.rectangle(width / 2, height / 2, 400, 200, 0x222222, 0.9).setStrokeStyle(2, 0xffffff);
+      this._pauseContinueButton = this.add.text(width / 2, height / 2 - 10, "Продолжить", {
+        font: '22px Arial',
+        color: '#ffffff',
+        backgroundColor: '#444444',
+        padding: { x: 20, y: 10 },
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    this._pauseText = this.add.text(width / 2, height / 2 - 60, "Пауза", {
-      font: '28px Arial',
-      color: '#ffffff',
-    }).setOrigin(0.5);
+      this._pauseMenuButton = this.add.text(width / 2, height / 2 + 50, "В меню", {
+        font: '22px Arial',
+        color: '#ffffff',
+        backgroundColor: '#444444',
+        padding: { x: 20, y: 10 },
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    this._pauseContinueButton = this.add.text(width / 2, height / 2 - 10, "Продолжить", {
-      font: '22px Arial',
-      color: '#ffffff',
-      backgroundColor: '#444444',
-      padding: { x: 20, y: 10 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      // Ховер-эффекты
+      this._pauseContinueButton.on('pointerover', () => this._pauseContinueButton!.setStyle({ backgroundColor: '#666666' }));
+      this._pauseContinueButton.on('pointerout', () => this._pauseContinueButton!.setStyle({ backgroundColor: '#444444' }));
+      this._pauseContinueButton.on('pointerdown', async () => {
+        await this._signalRService.connection.invoke("TogglePause", this._signalRService.currentRoomName);
+        this._hidePauseMenu();
+      });
 
-    this._pauseContinueButton.on('pointerover', () => this._pauseContinueButton!.setStyle({ backgroundColor: '#666666' }));
-    this._pauseContinueButton.on('pointerout', () => this._pauseContinueButton!.setStyle({ backgroundColor: '#444444' }));
-    this._pauseContinueButton.on('pointerdown', async () => {
-      await this._signalRService.connection.invoke("TogglePause", this._signalRService.currentRoomName);
-      this._hidePauseMenu();
-      this._pauseContinueButton?.destroy();
-    });
+      this._pauseMenuButton.on('pointerover', () => this._pauseMenuButton!.setStyle({ backgroundColor: '#666666' }));
+      this._pauseMenuButton.on('pointerout', () => this._pauseMenuButton!.setStyle({ backgroundColor: '#444444' }));
+      this._pauseMenuButton.on('pointerdown', async () => {
+        // Остановить соединение
+        await this._signalRService.stopConnection();
+        this.events.removeAllListeners();
 
-    this._pauseMenuButton = this.add.text(width / 2, height / 2 + 50, "В меню", {
-      font: '22px Arial',
-      color: '#ffffff',
-      backgroundColor: '#444444',
-      padding: { x: 20, y: 10 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        // Удаляем все объекты паузы
+        this._destroyPauseObjects();
 
-    this._pauseMenuButton.on('pointerover', () => this._pauseMenuButton!.setStyle({ backgroundColor: '#666666' }));
-    this._pauseMenuButton.on('pointerout', () => this._pauseMenuButton!.setStyle({ backgroundColor: '#444444' }));
-    this._pauseMenuButton.on('pointerdown', async () => {
-      await this._signalRService.stopConnection();
-      this.events.removeAllListeners();
-      this._pauseMenuButton?.destroy();
-      this.scene.start('MainMenuScene');
-    });
+        // Удаляем все игровые объекты
+        this._destroyAllGameObjects();
+
+        // Останавливаем все игровые сцены
+        this.scene.stop('MultiplayerScene');
+        this.scene.stop('SpaceBackgroundScene');
+        this.scene.stop('UIOverlayScene');
+        this.scene.stop('GameOverScene'); // если открыта
+
+        // Стартуем главное меню
+        this.scene.start('MainMenuScene');
+      });
+    }
+
+    // Показываем объекты
+    this._pauseOverlay?.setVisible(true);
+    this._pausePanel?.setVisible(true);
+    this._pauseText?.setVisible(true);
+    this._pauseContinueButton?.setVisible(true);
+    this._pauseMenuButton?.setVisible(true);
   }
 
   private _hidePauseMenu() {
+    this._pauseOverlay?.setVisible(false);
+    this._pausePanel?.setVisible(false);
+    this._pauseText?.setVisible(false);
+    this._pauseContinueButton?.setVisible(false);
+    this._pauseMenuButton?.setVisible(false);
+  }
+
+// Вынес отдельно для полного удаления
+  private _destroyPauseObjects() {
     this._pauseOverlay?.destroy();
     this._pausePanel?.destroy();
+    this._pauseText?.destroy();
     this._pauseContinueButton?.destroy();
     this._pauseMenuButton?.destroy();
-    this._pauseText?.destroy();
 
-    this.scene.launch('UIOverlayScene', { showPauseButton: true, showName: false, readOnly: true  });
+    this._pauseOverlay = undefined;
+    this._pausePanel = undefined;
+    this._pauseText = undefined;
+    this._pauseContinueButton = undefined;
+    this._pauseMenuButton = undefined;
+  }
+
+
+  private _destroyAllGameObjects() {
+    // Локальный игрок
+    this._playerSprite?.destroy();
+    this._playerSprite = undefined!;
+
+    // Удаляем всех удалённых игроков
+    this._remotePlayers.forEach(p => p.destroy());
+    this._remotePlayers.clear();
+
+    // Удаляем всех ботов
+    this._bots.forEach(b => b.destroy());
+    this._bots.clear();
+
+    // Удаляем все пули
+    this._bullets.forEach(b => b.destroy());
+    this._bullets.clear();
+
+    this._enemyBullets.forEach(b => b.destroy());
+    this._enemyBullets.clear();
+
+    // Тексты здоровья
+    this._healthTexts.forEach(t => t.destroy());
+    this._healthTexts.clear();
+
+    // HUD
+    this._playerHealthText?.destroy();
+    this._scoreText?.destroy();
+    this.fpsText?.destroy();
   }
 
   private _spawnBot(botId: string, state: any) {
@@ -405,16 +472,29 @@ export class MultiplayerScene extends Phaser.Scene {
 
   private _handlePlayerDeath(playerId: string) {
     if (playerId === this._connectionId) {
+      // Делаем игрока невидимым и отключаем ввод
       this._playerSprite.setVisible(false);
-      console.log("You died!");
+      this.input.enabled = false;
     } else {
       const remote = this._remotePlayers.get(playerId);
-      if (remote) {
-        remote.destroy();
-        this._remotePlayers.delete(playerId);
-      }
+      if (remote) remote.setVisible(false);
     }
+
     this._phaserMusicService.playSound(SoundsTrack.PlayerShipExplosion);
+
+    // Останавливаем движение всех объектов
+    this._bullets.forEach(b => (b.body as Phaser.Physics.Arcade.Body).enable = false);
+    this._enemyBullets.forEach(b => (b.body as Phaser.Physics.Arcade.Body).enable = false);
+    this._bots.forEach(bot => bot.setActive(false));
+    this._remotePlayers.forEach(p => p.setActive(false));
+    this._playerSprite.setActive(false);
+
+    // **НЕ вызываем _destroyAllGameObjects() здесь!**
+    // Объекты будут удаляться только при нажатии кнопки "В меню"
+
+    // Запускаем GameOverScene поверх
+    const score = Number(this._scoreText.text.replace('Score: ', ''));
+    this.scene.launch('GameOverScene', { score });
   }
 
   private _updateBotPosition(botId: string, pos: any) {
@@ -433,33 +513,7 @@ export class MultiplayerScene extends Phaser.Scene {
   }
 
   private _showGameOverMenu(score: number) {
-    const { width, height } = this.scale;
-
-    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
-    const panel = this.add.rectangle(width / 2, height / 2, 400, 200, 0x222222, 0.9).setStrokeStyle(2, 0xffffff);
-
-    const gameOverText = this.add.text(width / 2, height / 2 - 60, `Game Over\nВаш счёт: ${score.toFixed(0)}`, {
-      font: '24px Arial',
-      color: '#ffffff',
-      align: 'center'
-    }).setOrigin(0.5);
-
-    const button = this.add.text(width / 2, height / 2 + 30, 'Вернуться в меню', {
-      font: '20px Arial',
-      color: '#ffffff',
-      backgroundColor: '#444444',
-      padding: { x: 20, y: 10 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-    button.on('pointerover', () => button.setStyle({ backgroundColor: '#666666' }));
-    button.on('pointerout', () => button.setStyle({ backgroundColor: '#444444' }));
-    button.on('pointerdown', async () => {
-
-      await this._signalRService.stopConnection();
-      this.events.removeAllListeners();
-      button.destroy();
-      this.scene.start('MainMenuScene');
-    });
+    this.scene.launch('GameOverScene', { score });
   }
 
   override update() {

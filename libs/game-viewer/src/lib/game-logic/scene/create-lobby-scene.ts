@@ -84,6 +84,10 @@ export class CreateLobbyScene extends Phaser.Scene {
   async createRoom(roomName: string, maxPlayers: number) {
     await this._signalRService.startConnection();
 
+    this._signalRService.connection.on("Error", (errorMessage: string) => {
+      alert(`Ошибка: ${errorMessage}`);
+    });
+
     this._signalRService.connection.on("RoomCreated", (roomName: string) => {
       this.setLobbyScene(roomName);
     });
