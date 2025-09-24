@@ -23,6 +23,7 @@
     "@ngrx/effects": "^20.0.1",
     "@ngrx/store": "^20.0.1",
     "@nx/angular": "21.4.1",
+    "ngrx-store-localstorage": "^20.0.0",
     "ngx-webstorage": "^20.0.0",
     "phaser": "^3.90.0",
     "phaser3-rex-plugins": "^1.80.16",
