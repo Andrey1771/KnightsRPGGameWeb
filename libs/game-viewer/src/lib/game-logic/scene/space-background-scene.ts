@@ -11,12 +11,6 @@ export class SpaceBackgroundScene extends Phaser.Scene {
     super({ key: 'SpaceBackgroundScene' });
   }
 
-  preload() {
-    //this.load.image('particle', 'assets/particle.png');
-    this.load.image('comet', 'assets/comet.png');
-    this.load.glsl('nebula', 'assets/shaders/nebula.glsl');
-  }
-
   create() {
     const gameWidth = Number(this.sys.game.config.width) || 1280;
     const gameHeight = Number(this.sys.game.config.height) || 720;
