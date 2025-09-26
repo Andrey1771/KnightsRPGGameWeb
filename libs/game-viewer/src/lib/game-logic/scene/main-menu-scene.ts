@@ -1,15 +1,17 @@
 import { MusicTrack, PhaserMusicService } from '../../services/phaser-music-service/phaser-music-service';
+import * as Phaser from 'phaser';
 
 export class MainMenuScene extends Phaser.Scene {
   private _phaserMusicService!: PhaserMusicService;
   private playerNameInput!: any; // rexUI InputText
 
-  constructor(phaserMusicService: PhaserMusicService) {
+  constructor() {
     super({ key: 'MainMenuScene' });
-    this._phaserMusicService = phaserMusicService;
   }
 
   create() {
+    this._phaserMusicService = this.registry.get('musicService') as PhaserMusicService;
+
     this.scene.launch('UIOverlayScene', { showPauseButton: false, showName: true, readOnly: false });
 
     this._phaserMusicService.init(this);
