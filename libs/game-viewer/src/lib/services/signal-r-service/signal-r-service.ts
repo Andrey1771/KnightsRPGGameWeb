@@ -1,39 +1,227 @@
 import { Injectable } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
+import { Store } from '@ngrx/store';
+import { Subject, fromEventPattern, Observable, of, firstValueFrom } from 'rxjs';
+import { takeUntil, catchError } from 'rxjs/operators';
+import { GameState } from '../../game-logic/store/game/game.state';
+import * as GameActions from '../../game-logic/store/game/game.actions';
+import * as MultiplayerActions from '../../game-logic/store/multiplayer/multiplayer.actions';
+import * as CreateLobbyActions from '../../game-logic/store/create-lobby/create-lobby.actions';
+import { PlayerPositionDto } from '../../dto/player-position-dto';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class SignalRService {
   private hubConnection!: signalR.HubConnection;
+  private destroy$ = new Subject<void>();
 
-  public currentRoomName: string | null = null; //TODO Private
+  public playerHit$ = new Subject<{ id: string; health: number }>();
+  public playerDied$ = new Subject<{ id: string }>();
 
-  public startConnection(): Promise<void> {
+  public botDied$ = new Subject<{ id: string }>();
+
+  private connectionEstablished$ = new Subject<void>();
+
+  constructor(private store: Store<GameState>) {}
+
+  public startConnection(): Observable<void> {
     this.hubConnection = new signalR.HubConnectionBuilder()
-      .withUrl("https://localhost:7172/gamehub", {
-        transport: signalR.HttpTransportType.WebSockets
-      }) // TODO заменить на реальный URL
+      .withUrl('https://localhost:7172/gamehub')
       .withAutomaticReconnect()
       .build();
 
-    return this.hubConnection.start();
+    return new Observable<void>((observer) => {
+      this.hubConnection
+        .start()
+        .then(() => {
+          console.log('SignalR connected');
+          this.registerHandlers();
+          observer.next();
+          observer.complete();
+          this.connectionEstablished$.next();
+        })
+        .catch((err) => observer.error(err));
+    }).pipe(
+      takeUntil(this.destroy$),
+      catchError((err) => {
+        console.error('SignalR connection error', err);
+        return of(); // Возвращаем пустой Observable при ошибке
+      })
+    );
   }
 
-  public stopConnection(): Promise<void> {
-    this.currentRoomName = null; // сбросим при выходе
-    return this.hubConnection.stop();
+  public waitForConnection(): Promise<void> {
+    if (this.hubConnection?.state === signalR.HubConnectionState.Connected) {
+      return Promise.resolve();
+    }
+    return firstValueFrom(this.connectionEstablished$);
   }
 
-  public get connection(): signalR.HubConnection { //TODO Убрать
-    return this.hubConnection;
+  private registerHandlers() {
+    const addHandler = <T>(
+      eventName: string,
+      actionCreator: (payload: T) => any
+    ) => {
+      fromEventPattern<T>(
+        (handler) => {
+          console.log(`eventName: ${eventName}`);
+          this.hubConnection.on(eventName, handler);
+        },
+        (handler) => this.hubConnection.off(eventName, handler)
+      )
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((payload) => {
+          try {
+            const action = actionCreator(payload);
+            this.store.dispatch(action);
+          } catch (err) {
+            console.log("registerHandlersError: ", err)
+          }
+        });
+    };
+
+    // GameActions
+    addHandler('ReceivePlayerList', (dto: any) => {
+      console.log('ReceivePlayerList', dto);
+      return GameActions.updatePlayers({
+          players: dto.playerInfos,
+          leaderConnectionId: dto.leaderConnectionId,
+        })
+      }
+    );
+
+    addHandler('GameStarted', (data: any) =>
+      GameActions.startGame({
+        initialPositions: data.initialPositions,
+        bots: data.bots,
+      })
+    );
+
+    addHandler('RoomCreated', (roomName: string) =>
+      CreateLobbyActions.createLobbySuccess({ lobbyName: roomName })
+    );
+
+    addHandler('Error', (errorMessage: string) =>
+      CreateLobbyActions.createLobbyFailure({ error: errorMessage })
+    );
+
+    // MultiplayerActions
+    addHandler('ReceivePlayerPosition', (data: any) =>
+      MultiplayerActions.updatePlayerPosition({ id: data[0], pos: data[1] })
+    );
+
+    addHandler('PlayerLeft', (id: string) =>
+      MultiplayerActions.removePlayer({ id })
+    );
+
+    addHandler('ReceiveBotList', (botsPayload: any) => {
+      let normalized: Record<string, PlayerPositionDto> = {};
+      console.log(botsPayload);
+      if (!botsPayload) {
+        normalized = {};
+      } else if (Array.isArray(botsPayload)) {
+        normalized = Object.fromEntries(
+          botsPayload.map((b: any) => [
+            b.id,
+            {
+              x: b.x,
+              y: b.y,
+              health: b.health ?? 100,
+              shootingStyle: b.shootingStyle ?? 0
+            } as PlayerPositionDto
+          ])
+        );
+      } else if (typeof botsPayload === 'object') {
+        normalized = Object.entries(botsPayload).reduce((acc, [id, val]) => {
+          const v: any = val;
+          acc[id] = {
+            x: v.x ?? 0,
+            y: v.y ?? 0,
+            health: v.health ?? 100,
+            shootingStyle: v.shootingStyle ?? 0
+          } as PlayerPositionDto;
+          return acc;
+        }, {} as Record<string, PlayerPositionDto>);
+      }
+
+      return MultiplayerActions.setBots({ bots: normalized });
+    });
+
+    addHandler('ReceiveBotPosition', (data: any) =>
+      MultiplayerActions.updateBotPosition({ id: data[0], pos: data[1] })
+    );
+
+    this.hubConnection.on('PlayerHit', (id: string, health: number) => {
+      this.playerHit$.next({ id, health });
+    });
+
+    this.hubConnection.on('PlayerDied', (id: string) => {
+      this.playerDied$.next({ id });
+    });
+
+    this.hubConnection.on('BotDied', (id: string) => {
+      this.botDied$.next({ id });
+    });
+
+    addHandler('SpawnBullet', (bullet: any) =>
+      MultiplayerActions.spawnBullet({ bullet })
+    );
+
+    addHandler('RemoveBullet', (id: string) =>
+      MultiplayerActions.removeBullet({ id })
+    );
+
+    addHandler('UpdateBullet', (bullet: any) =>
+      MultiplayerActions.updateBullet({ bullet })
+    );
+
+    // Enemy Bullets
+    addHandler('SpawnEnemyBullet', (bullet: any) =>
+      MultiplayerActions.spawnEnemyBullet({ bullet })
+    );
+
+    addHandler('UpdateEnemyBullet', (bullet: any) =>
+      MultiplayerActions.updateEnemyBullet({ bullet })
+    );
+
+    addHandler('RemoveEnemyBullet', (id: string) =>
+      MultiplayerActions.removeEnemyBullet({ id })
+    );
+
+    addHandler('UpdateScore', (score: number) =>
+      MultiplayerActions.setScore({ score })
+    );
+
+    addHandler('GamePaused', (isPaused: boolean) =>
+      isPaused ? MultiplayerActions.pauseGame() : MultiplayerActions.resumeGame()
+    );
+
+    addHandler('GameOver', () => MultiplayerActions.gameOver());
+
   }
 
-  public get connectionId(): string | null { //TODO Убрать
-    return this.hubConnection.connectionId;
+  public get connectionId(): string | null {
+    return this.hubConnection?.connectionId ?? null;
   }
 
-  public isConnected(): boolean {
-    return this.hubConnection?.state === signalR.HubConnectionState.Connected;
+  public stopConnection() {
+    this.destroy$.next();
+    this.destroy$.complete();
+    return this.hubConnection?.stop();
+  }
+
+  // Универсальный вызов методов
+  async invokeSafe<T>(method: string, ...args: any[]): Promise<T> {
+    if (!this.hubConnection) {
+      throw new Error("Необходимо в начале создать соединение с сервером");
+    }
+    await this.waitForConnection();
+    return this.invoke<T>(method, ...args);
+  }
+
+  private invoke<T>(method: string, ...args: any[]): Promise<T> {
+    if (this.hubConnection.state !== signalR.HubConnectionState.Connected) {
+      throw new Error(`Сервер не установил соединение, состояние соединения: ${this.hubConnection.state}`);
+    }
+    return this.hubConnection.invoke<T>(method, ...args);
   }
 }

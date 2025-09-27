@@ -1,106 +1,103 @@
 import * as Phaser from 'phaser';
+import { Store } from '@ngrx/store';
+import { MultiplayerState } from '../store/multiplayer/multiplayer.state';
 import { SignalRService } from "../../services/signal-r-service/signal-r-service";
 import { MusicTrack, PhaserMusicService, SoundsTrack } from "../../services/phaser-music-service/phaser-music-service";
+import {Subject, take, takeUntil} from 'rxjs';
+import {PlayerPositionDto} from "../../dto/player-position-dto";
 
-enum PlayerInputAction {
-  MoveUp = 'MoveUp',
-  MoveDown = 'MoveDown',
-  MoveLeft = 'MoveLeft',
-  MoveRight = 'MoveRight',
-  StopMoveUp = 'StopMoveUp',
-  StopMoveDown = 'StopMoveDown',
-  StopMoveLeft = 'StopMoveLeft',
-  StopMoveRight = 'StopMoveRight'
-}
-
-//TODO State
-interface PlayerPositionDto {
-  x: number;
-  y: number;
-  health: number; // ← добавлено
-}
-
-enum BulletType
-{
-  Straight,
-  ZigZag,
-  Arc,
-  Explosive
-}
-
-type PositionMap = Record<string, PlayerPositionDto>;
+import * as MultiplayerActions from '../../game-logic/store/multiplayer/multiplayer.actions';
+import { resetAll } from '../store/global/global.actions';
+import {selectLobbyName} from "../store/lobby/lobby.selectors";
+import {GameState} from "../store/game/game.state";
+import {selectGameOver, selectMultiplayerState} from '../store/multiplayer/multiplayer.selectors';
 
 export class MultiplayerScene extends Phaser.Scene {
-  private _background!: Phaser.GameObjects.Image;
   private _playerSprite!: Phaser.GameObjects.Sprite;
   private _remotePlayers: Map<string, Phaser.GameObjects.Sprite> = new Map();
-  private _connectionId = '';
-  private _cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-
-  private _initialPositions!: PositionMap;
-  private _initialBotPositions!: PositionMap;
-
   private _bots: Map<string, Phaser.GameObjects.Sprite> = new Map();
-
-  private _signalRService!: SignalRService;
-  private _phaserMusicService!: PhaserMusicService;
-
   private _bullets: Map<string, Phaser.GameObjects.Rectangle> = new Map();
   private _enemyBullets: Map<string, Phaser.GameObjects.Rectangle> = new Map();
-
-  private _playerHealthText!: Phaser.GameObjects.Text;
   private _healthTexts: Map<string, Phaser.GameObjects.Text> = new Map();
 
+  private _playerHealthText!: Phaser.GameObjects.Text;
   private _scoreText!: Phaser.GameObjects.Text;
-  private fpsText: any;
+  private fpsText!: Phaser.GameObjects.Text;
 
-
-  // Поле для хранения элементов меню, чтобы их потом убрать
   private _pauseOverlay?: Phaser.GameObjects.Rectangle;
   private _pausePanel?: Phaser.GameObjects.Rectangle;
   private _pauseContinueButton?: Phaser.GameObjects.Text;
   private _pauseMenuButton?: Phaser.GameObjects.Text;
   private _pauseText?: Phaser.GameObjects.Text;
 
-  constructor(signalRService: SignalRService, phaserMusicService: PhaserMusicService) {
+  private store!: Store<{ multiplayer: MultiplayerState }>;
+  private _gameStateStore!: Store<GameState>;
+  private signalRService!: SignalRService;
+  private phaserMusicService!: PhaserMusicService;
+
+  private destroy$ = new Subject<void>();
+
+  constructor() {
     super({ key: 'MultiplayerScene' });
-    this._signalRService = signalRService;
-    this._phaserMusicService = phaserMusicService;
   }
 
-  init(data: { initialPositions: PositionMap, bots: PositionMap }) {
-    this._initialPositions = data.initialPositions;
-    this._initialBotPositions = data.bots;
-  }
+  create() {
+    this.store = this.registry.get('multiplayerStore');
+    this.signalRService = this.registry.get('signalR');
+    this.phaserMusicService = this.registry.get('musicService');
+    this._gameStateStore = this.registry.get('lobbyStore');//TODO Ошибка брать lobbyStore?
 
-  async create() {
-    this.scene.launch('UIOverlayScene', { showPauseButton: true, showName: false, readOnly: true  });
-
+    this.scene.launch('UIOverlayScene', { showPauseButton: true, showName: false, readOnly: true });
     this.scene.launch('SpaceBackgroundScene');
     this.scene.sendToBack('SpaceBackgroundScene');
 
-    this._initializeScene();
     this._setupControls();
     this._setupUI();
+    this.phaserMusicService.playMusic(MusicTrack.BattleTheme);
 
-    this._registerPlayer();
+    this.signalRService.playerHit$.pipe(takeUntil(this.destroy$)).subscribe(({ id, health }) => {
+      this._handlePlayerHit(id, health);
+    });
 
-    this._spawnInitialPlayers();
-    this._spawnInitialBots();
+    // подписка на смерти
+    this.signalRService.playerDied$.pipe(takeUntil(this.destroy$)).subscribe(({ id }) => {
+      this._handlePlayerDeath(id);
+    });
 
-    this._setupSignalRHandlers();
+    this.signalRService.botDied$.pipe(takeUntil(this.destroy$)).subscribe(({ id }) => {
+      this.store.dispatch(MultiplayerActions.botDied({ id }));
+      this.phaserMusicService.playSound(SoundsTrack.EnemyShipExplosion);
+      this._removeBotSprite(id);
+    });
 
-    this._phaserMusicService.playMusic(MusicTrack.BattleTheme);
+    this.store.select(selectGameOver).subscribe((isGameOver) => {
+      if (isGameOver) {
+        const score = Number(this._scoreText.text.replace('Score: ', ''));
+        this.scene.launch('GameOverScene', { score });
+      }
+    });
+
+    // Подписка на состояние через Store
+    this.store.select(selectMultiplayerState).pipe(takeUntil(this.destroy$)).subscribe(state => {
+      // синхронизация сущностей
+      this._syncPlayers(state.players);
+      this._syncBots(state.bots);
+      this._syncBullets(state.bullets, false);
+      this._syncBullets(state.enemyBullets, true);
+      this._scoreText.setText(`Score: ${state.score.toFixed(0)}`);
+
+      if (state.isPaused) this._showPauseMenu();
+      else this._hidePauseMenu();
+
+      if (state.gameOver) this._showGameOverMenu(state.score);
+    });
+
+    this.events.once('shutdown', this.shutDownListener, this);
   }
 
-  private _initializeScene() {
-    const { width, height } = this.scale;
-    //this._background = this.add.image(width / 2, height / 2, 'background');
-    //this._background.setDisplaySize(width, height);
-  }
 
   private _setupControls() {
-    this._cursors = this.input.keyboard!.createCursorKeys();
+    const cursors = this.input.keyboard?.createCursorKeys();
     const keysDown = new Set<string>();
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
@@ -108,15 +105,12 @@ export class MultiplayerScene extends Phaser.Scene {
       keysDown.add(event.code);
 
       switch (event.code) {
-        case 'ArrowUp': this._sendAction(PlayerInputAction.MoveUp); break;
-        case 'ArrowDown': this._sendAction(PlayerInputAction.MoveDown); break;
-        case 'ArrowLeft': this._sendAction(PlayerInputAction.MoveLeft); break;
-        case 'ArrowRight': this._sendAction(PlayerInputAction.MoveRight); break;
+        case 'ArrowUp': this.signalRService.invokeSafe("PerformAction", "MoveUp"); break;
+        case 'ArrowDown': this.signalRService.invokeSafe("PerformAction", "MoveDown"); break;
+        case 'ArrowLeft': this.signalRService.invokeSafe("PerformAction", "MoveLeft"); break;
+        case 'ArrowRight': this.signalRService.invokeSafe("PerformAction", "MoveRight"); break;
+        case 'Space': this.signalRService.invokeSafe("Shoot"); break;
       }
-    });
-
-    this.input.keyboard?.on('keydown-SPACE', () => {
-      this._signalRService.connection.invoke("Shoot");
     });
 
     this.input.keyboard?.on('keyup', (event: KeyboardEvent) => {
@@ -124,340 +118,101 @@ export class MultiplayerScene extends Phaser.Scene {
       keysDown.delete(event.code);
 
       switch (event.code) {
-        case 'ArrowUp': this._sendAction(PlayerInputAction.StopMoveUp); break;
-        case 'ArrowDown': this._sendAction(PlayerInputAction.StopMoveDown); break;
-        case 'ArrowLeft': this._sendAction(PlayerInputAction.StopMoveLeft); break;
-        case 'ArrowRight': this._sendAction(PlayerInputAction.StopMoveRight); break;
+        case 'ArrowUp': this.signalRService.invokeSafe("PerformAction", "StopMoveUp"); break;
+        case 'ArrowDown': this.signalRService.invokeSafe("PerformAction", "StopMoveDown"); break;
+        case 'ArrowLeft': this.signalRService.invokeSafe("PerformAction", "StopMoveLeft"); break;
+        case 'ArrowRight': this.signalRService.invokeSafe("PerformAction", "StopMoveRight"); break;
       }
     });
-  }
-
-  private _sendAction(action: PlayerInputAction) {
-    this._signalRService.connection.invoke("PerformAction", action);
   }
 
   private _setupUI() {
     this._playerSprite = this.add.sprite(this.scale.width / 2, this.scale.height / 2, 'player').setScale(0.25);
 
     this._playerHealthText = this.add.text(16, 16, 'HP: 100', {
-      font: '20px Arial',
-      color: '#ffffff',
-      backgroundColor: '#000000',
-      padding: { x: 6, y: 4 },
+      font: '20px Arial', color: '#ffffff', backgroundColor: '#000000', padding: { x: 6, y: 4 }
     }).setScrollFactor(0);
 
     this._scoreText = this.add.text(this.scale.width - 150, 16, 'Score: 0', {
-      font: '20px Arial',
-      color: '#ffffff',
-      backgroundColor: '#000000',
-      padding: { x: 6, y: 4 },
+      font: '20px Arial', color: '#ffffff', backgroundColor: '#000000', padding: { x: 6, y: 4 }
     }).setScrollFactor(0).setOrigin(1, 0);
 
     this.fpsText = this.add.text(10, 10, '', { font: '16px Courier' });
   }
 
-  private _registerPlayer() { // TODO Убрать
-    this._connectionId = this._signalRService.connectionId ?? "";
-  }
-
-  private _spawnInitialPlayers() {
-    Object.entries(this._initialPositions).forEach(([id, pos]) => {
-      if (id === this._connectionId) {
+  private _syncPlayers(players: Record<string, PlayerPositionDto>) {
+    Object.entries(players).forEach(([id, pos]) => {
+      if (id === this.signalRService.connectionId) {
         this._playerSprite.setPosition(pos.x, pos.y);
-        //this.cameras.main.startFollow(this._playerSprite);
+        this._playerHealthText.setText(`HP: ${pos.health}`);
       } else {
-        const remote = this.add.sprite(pos.x, pos.y, 'player').setScale(0.25).setTint(0x00ff00);
-        this._remotePlayers.set(id, remote);
-      }
-    });
-  }
+        let sprite = this._remotePlayers.get(id);
+        if (!sprite) {
+          sprite = this.add.sprite(pos.x, pos.y, 'player').setScale(0.25).setTint(0x00ff00);
+          this._remotePlayers.set(id, sprite);
+        } else sprite.setPosition(pos.x, pos.y);
 
-  private _spawnInitialBots() {
-    Object.entries(this._initialBotPositions).forEach(([botId, pos]) => {
-      const botSprite = this.add.sprite(pos.x, pos.y, 'bot');
-      this._bots.set(botId, botSprite);
-    });
-  }
-
-  private _setupSignalRHandlers() {
-    const on = this._signalRService.connection.on.bind(this._signalRService.connection);
-
-    on("ReceiveBotList", bots => {
-      Object.entries(bots).forEach(([botId, pos]) => {
-        this.events.emit('spawn-bot', botId, pos);
-      });
-    });
-
-    this.events.on('spawn-bot', (botId: string, state: any) => this._spawnBot(botId, state));
-
-    on("ReceivePlayerPosition", (id, pos) => this._updatePlayerPosition(id, pos));
-    on("ReceiveHit", () => this._playerGotHit());
-    on("ReceiveBotHit", (id, health) => this._botGotHit(id, health));
-    on("BotDied", id => this._removeBot(id));
-    on("BulletHit", id => this._removeBullet(id));
-    on("PlayerLeft", id => this._removePlayer(id));
-    on("SpawnBullet", bullet => this._spawnBullet(bullet));
-    on("UpdateBullet", bullet => this._updateBullet(bullet));
-    on("RemoveBullet", id => this._removeBullet(id));
-    on("SpawnEnemyBullet", bullet => this._spawnEnemyBullet(bullet));
-    on("UpdateEnemyBullet", bullet => this._updateEnemyBullet(bullet));
-    on("RemoveEnemyBullet", id => this._removeEnemyBullet(id));
-    on("PlayerHit", (id, health) => this._handlePlayerHit(id, health));
-    on("PlayerDied", id => this._handlePlayerDeath(id));
-    on("ReceiveBotPosition", (id, pos) => this._updateBotPosition(id, pos));
-    on("UpdateScore", score => this._updateScore(score));
-    on("GamePaused", (isPaused: boolean) => {
-      if (isPaused) {
-        this._showPauseMenu();
-        this.scene.pause('SpaceBackgroundScene');
-      } else {
-        this._hidePauseMenu();
-        this.scene.resume('SpaceBackgroundScene');
-      }
-    });
-
-    on("GameOver", (score: number) => {
-      this._showGameOverMenu(score);
-
-      setTimeout(() => {
-        const wantsToSave = confirm(`Хотите сохранить результат? Ваш счёт: ${score}`);
-        if (wantsToSave) {
-          const playerName = prompt("Введите ваше имя:");
-          if (playerName?.trim()) {
-            this._signalRService.connection.invoke("ReportDeath", playerName.trim());
-          }
+        let healthText = this._healthTexts.get(id);
+        if (!healthText) {
+          healthText = this.add.text(pos.x, pos.y - 50, `HP: ${pos.health}`, {
+            font: '16px Arial', color: '#ffffff', backgroundColor: '#000000', padding: { x: 4, y: 2 }
+          });
+          this._healthTexts.set(id, healthText);
+        } else {
+          healthText.setText(`HP: ${pos.health}`);
+          healthText.setPosition(pos.x - healthText.width / 2, pos.y - 50);
         }
-      }, 300); // немного позже, чтобы не перекрывало UI
+      }
     });
   }
 
-  private _showPauseMenu() {
-    const { width, height } = this.scale;
-
-    // Создаем только если еще не созданы
-    if (!this._pauseOverlay) {
-      this._pauseOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
-      this._pausePanel = this.add.rectangle(width / 2, height / 2, 400, 200, 0x222222, 0.9).setStrokeStyle(2, 0xffffff);
-      this._pauseText = this.add.text(width / 2, height / 2 - 60, "Пауза", { font: '28px Arial', color: '#ffffff' }).setOrigin(0.5);
-
-      this._pauseContinueButton = this.add.text(width / 2, height / 2 - 10, "Продолжить", {
-        font: '22px Arial',
-        color: '#ffffff',
-        backgroundColor: '#444444',
-        padding: { x: 20, y: 10 },
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-      this._pauseMenuButton = this.add.text(width / 2, height / 2 + 50, "В меню", {
-        font: '22px Arial',
-        color: '#ffffff',
-        backgroundColor: '#444444',
-        padding: { x: 20, y: 10 },
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-      // Ховер-эффекты
-      this._pauseContinueButton.on('pointerover', () => this._pauseContinueButton!.setStyle({ backgroundColor: '#666666' }));
-      this._pauseContinueButton.on('pointerout', () => this._pauseContinueButton!.setStyle({ backgroundColor: '#444444' }));
-      this._pauseContinueButton.on('pointerdown', async () => {
-        await this._signalRService.connection.invoke("TogglePause", this._signalRService.currentRoomName);
-        this._hidePauseMenu();
-      });
-
-      this._pauseMenuButton.on('pointerover', () => this._pauseMenuButton!.setStyle({ backgroundColor: '#666666' }));
-      this._pauseMenuButton.on('pointerout', () => this._pauseMenuButton!.setStyle({ backgroundColor: '#444444' }));
-      this._pauseMenuButton.on('pointerdown', async () => {
-        // Остановить соединение
-        await this._signalRService.stopConnection();
-        this.events.removeAllListeners();
-
-        // Удаляем все объекты паузы
-        this._destroyPauseObjects();
-
-        // Удаляем все игровые объекты
-        this._destroyAllGameObjects();
-
-        // Останавливаем все игровые сцены
-        this.scene.stop('MultiplayerScene');
-        this.scene.stop('SpaceBackgroundScene');
-        this.scene.stop('UIOverlayScene');
-        this.scene.stop('GameOverScene'); // если открыта
-
-        // Стартуем главное меню
-        this.scene.start('MainMenuScene');
-      });
-    }
-
-    // Показываем объекты
-    this._pauseOverlay?.setVisible(true);
-    this._pausePanel?.setVisible(true);
-    this._pauseText?.setVisible(true);
-    this._pauseContinueButton?.setVisible(true);
-    this._pauseMenuButton?.setVisible(true);
-  }
-
-  private _hidePauseMenu() {
-    this._pauseOverlay?.setVisible(false);
-    this._pausePanel?.setVisible(false);
-    this._pauseText?.setVisible(false);
-    this._pauseContinueButton?.setVisible(false);
-    this._pauseMenuButton?.setVisible(false);
-  }
-
-// Вынес отдельно для полного удаления
-  private _destroyPauseObjects() {
-    this._pauseOverlay?.destroy();
-    this._pausePanel?.destroy();
-    this._pauseText?.destroy();
-    this._pauseContinueButton?.destroy();
-    this._pauseMenuButton?.destroy();
-
-    this._pauseOverlay = undefined;
-    this._pausePanel = undefined;
-    this._pauseText = undefined;
-    this._pauseContinueButton = undefined;
-    this._pauseMenuButton = undefined;
-  }
-
-
-  private _destroyAllGameObjects() {
-    // Локальный игрок
-    this._playerSprite?.destroy();
-    this._playerSprite = undefined!;
-
-    // Удаляем всех удалённых игроков
-    this._remotePlayers.forEach(p => p.destroy());
-    this._remotePlayers.clear();
-
-    // Удаляем всех ботов
-    this._bots.forEach(b => b.destroy());
-    this._bots.clear();
-
-    // Удаляем все пули
-    this._bullets.forEach(b => b.destroy());
-    this._bullets.clear();
-
-    this._enemyBullets.forEach(b => b.destroy());
-    this._enemyBullets.clear();
-
-    // Тексты здоровья
-    this._healthTexts.forEach(t => t.destroy());
-    this._healthTexts.clear();
-
-    // HUD
-    this._playerHealthText?.destroy();
-    this._scoreText?.destroy();
-    this.fpsText?.destroy();
-  }
-
-  private _spawnBot(botId: string, state: any) {
-    const texture = ['enemy_0', 'enemy_1', 'enemy_2'][state.shootingStyle] || 'enemy_0';
-    const sprite = this.add.sprite(state.x, state.y, texture)
-      .setRotation(Math.PI)
-      .setScale(0.25);
-
-    this._bots.set(botId, sprite);
-    console.log("spawnBot: " + botId);
-  }
-
-  private _updatePlayerPosition(id: string, pos: any) {
-    if (id === this._connectionId) {
-      this._playerSprite.setPosition(pos.x, pos.y);
-      this._playerHealthText.setText(`HP: ${pos.health}`);
-    } else {
-      let sprite = this._remotePlayers.get(id);
+  private _syncBots(bots: Record<string, PlayerPositionDto>) {
+    Object.entries(bots).forEach(([id, pos]) => {
+      let sprite = this._bots.get(id);
       if (!sprite) {
-        sprite = this.add.sprite(pos.x, pos.y, 'player').setScale(0.25).setTint(0x00ff00);
-        this._remotePlayers.set(id, sprite);
+        const texture = ['enemy_0', 'enemy_1', 'enemy_2'][pos.shootingStyle] || 'enemy_0';
+        sprite = this.add.sprite(pos.x, pos.y, texture).setRotation(Math.PI).setScale(0.25);
+        this._bots.set(id, sprite);
       } else {
         sprite.setPosition(pos.x, pos.y);
       }
+    });
+  }
 
-      let healthText = this._healthTexts.get(id);
-      if (!healthText) {
-        healthText = this.add.text(pos.x, pos.y - 50, `HP: ${pos.health}`, {
-          font: '16px Arial',
-          color: '#ffffff',
-          backgroundColor: '#000000',
-          padding: { x: 4, y: 2 },
-        });
-        this._healthTexts.set(id, healthText);
+  private _removeBotSprite(id: string) {
+    const sprite = this._bots.get(id);
+    if (sprite) {
+      sprite.destroy();
+      this._bots.delete(id);
+    }
+  }
+
+  private _syncBullets(bullets: Record<string, any>, isEnemy = false) {
+    const targetMap = isEnemy ? this._enemyBullets : this._bullets;
+
+    // Создаем/обновляем спрайты пуль
+    Object.entries(bullets).forEach(([id, b]) => {
+      let sprite = targetMap.get(id);
+      if (!sprite) {
+        sprite = this.add.rectangle(b.x, b.y, 5, 10, isEnemy ? 0xff0000 : 0xffffff);
+        this.physics.add.existing(sprite);
+        targetMap.set(id, sprite);
       } else {
-        healthText.setText(`HP: ${pos.health}`);
-        healthText.setPosition(pos.x - healthText.width / 2, pos.y - 50);
+        sprite.setPosition(b.x, b.y);
       }
-    }
-  }
+    });
 
-  private _playerGotHit() {
-    this._playerSprite.setTint(0xff0000);
-    this.time.delayedCall(500, () => this._playerSprite.clearTint());
-  }
-
-  private _botGotHit(botId: string, _health: number) {
-    const bot = this._bots.get(botId);
-    if (bot) {
-      // TODO: визуализация урона
-    }
-  }
-
-  private _removeBot(botId: string) {
-    const bot = this._bots.get(botId);
-    if (bot) {
-      bot.destroy();
-      this._bots.delete(botId);
-      this._phaserMusicService.playSound(SoundsTrack.EnemyShipExplosion);
-    }
-  }
-
-  private _removePlayer(playerId: string) {
-    const sprite = this._remotePlayers.get(playerId);
-    if (sprite) {
-      sprite.destroy();
-      this._remotePlayers.delete(playerId);
-    }
-  }
-
-  private _spawnBullet(bullet: any) {
-    const sprite = this.add.rectangle(bullet.x, bullet.y, 5, 10, 0xffffff);
-    this.physics.add.existing(sprite);
-    this._bullets.set(bullet.id, sprite);
-    this._phaserMusicService.playSound(SoundsTrack.PlayerLaser);
-  }
-
-  private _updateBullet(bullet: any) {
-    const sprite = this._bullets.get(bullet.id);
-    if (sprite) sprite.setPosition(bullet.x, bullet.y);
-  }
-
-  private _removeBullet(bulletId: string) {
-    const sprite = this._bullets.get(bulletId);
-    if (sprite) {
-      sprite.destroy();
-      this._bullets.delete(bulletId);
-    }
-  }
-
-  private _spawnEnemyBullet(bullet: any) {
-    const sprite = this.add.rectangle(bullet.x, bullet.y, 5, 10, 0xff0000);
-    this.physics.add.existing(sprite);
-    this._enemyBullets.set(bullet.id, sprite);
-    this._phaserMusicService.playSound(SoundsTrack.EnemyLaser);
-  }
-
-  private _updateEnemyBullet(bullet: any) {
-    const sprite = this._enemyBullets.get(bullet.id);
-    if (sprite) sprite.setPosition(bullet.x, bullet.y);
-  }
-
-  private _removeEnemyBullet(bulletId: string) {
-    const sprite = this._enemyBullets.get(bulletId);
-    if (sprite) {
-      sprite.destroy();
-      this._enemyBullets.delete(bulletId);
-    }
+    // Удаляем пули, которых больше нет в state
+    targetMap.forEach((sprite, id) => {
+      if (!bullets[id]) {
+        sprite.destroy();
+        targetMap.delete(id);
+      }
+    });
   }
 
   private _handlePlayerHit(playerId: string, health: number) {
-    const isLocal = playerId === this._connectionId;
+    const isLocal = playerId === this.signalRService.connectionId;
     const sprite = isLocal ? this._playerSprite : this._remotePlayers.get(playerId);
 
     if (sprite) {
@@ -471,49 +226,70 @@ export class MultiplayerScene extends Phaser.Scene {
   }
 
   private _handlePlayerDeath(playerId: string) {
-    if (playerId === this._connectionId) {
-      // Делаем игрока невидимым и отключаем ввод
+    if (playerId === this.signalRService.connectionId) {
       this._playerSprite.setVisible(false);
       this.input.enabled = false;
     } else {
       const remote = this._remotePlayers.get(playerId);
       if (remote) remote.setVisible(false);
     }
-
-    this._phaserMusicService.playSound(SoundsTrack.PlayerShipExplosion);
-
-    // Останавливаем движение всех объектов
-    this._bullets.forEach(b => (b.body as Phaser.Physics.Arcade.Body).enable = false);
-    this._enemyBullets.forEach(b => (b.body as Phaser.Physics.Arcade.Body).enable = false);
-    this._bots.forEach(bot => bot.setActive(false));
-    this._remotePlayers.forEach(p => p.setActive(false));
-    this._playerSprite.setActive(false);
-
-    // **НЕ вызываем _destroyAllGameObjects() здесь!**
-    // Объекты будут удаляться только при нажатии кнопки "В меню"
-
-    // Запускаем GameOverScene поверх
-    const score = Number(this._scoreText.text.replace('Score: ', ''));
-    this.scene.launch('GameOverScene', { score });
+    this.phaserMusicService.playSound(SoundsTrack.PlayerShipExplosion);
   }
 
-  private _updateBotPosition(botId: string, pos: any) {
-    const bot = this._bots.get(botId);
-    if (bot) {
-      bot.setPosition(pos.x, pos.y);
-      if (pos.y > this.scale.height) {
-        bot.destroy();
-        this._bots.delete(botId);
-      }
+  private _showPauseMenu() {
+    if (!this._pauseOverlay) {
+      const { width, height } = this.scale;
+      this._pauseOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6);
+      this._pausePanel = this.add.rectangle(width / 2, height / 2, 400, 200, 0x222222, 0.9).setStrokeStyle(2, 0xffffff);
+      this._pauseText = this.add.text(width / 2, height / 2 - 60, "Пауза", { font: '28px Arial', color: '#ffffff' }).setOrigin(0.5);
+
+      this._pauseContinueButton = this.add.text(width / 2, height / 2 - 10, "Продолжить", { font: '22px Arial', color: '#fff', backgroundColor: '#444', padding: { x: 20, y: 10 } })
+        .setOrigin(0.5).setInteractive({ useHandCursor: true }).on('pointerdown', async () => {
+          this._gameStateStore.select(selectLobbyName).pipe(take(1)).pipe(takeUntil(this.destroy$)).subscribe(async (roomName) => {
+            await this.signalRService.invokeSafe("TogglePause", roomName);
+          });
+        });
+
+      this._pauseMenuButton = this.add.text(width / 2, height / 2 + 50, "В меню", { font: '22px Arial', color: '#fff', backgroundColor: '#444', padding: { x: 20, y: 10 } })
+        .setOrigin(0.5).setInteractive({ useHandCursor: true }).on('pointerdown', async () => {
+          await this.signalRService.stopConnection();
+          this.scene.stop('MultiplayerScene');
+          this.scene.stop('SpaceBackgroundScene');
+          this.scene.stop('UIOverlayScene');
+          this.scene.start('MainMenuScene');
+        });
     }
+    [this._pauseOverlay, this._pausePanel, this._pauseText, this._pauseContinueButton, this._pauseMenuButton].forEach(o => o?.setVisible(true));
   }
 
-  private _updateScore(score: number) {
-    this._scoreText?.setText(`Score: ${score.toFixed(0)}`);
+  private _hidePauseMenu() {
+    [this._pauseOverlay, this._pausePanel, this._pauseText, this._pauseContinueButton, this._pauseMenuButton].forEach(o => o?.setVisible(false));
   }
 
   private _showGameOverMenu(score: number) {
     this.scene.launch('GameOverScene', { score });
+  }
+
+  shutDownListener() {
+    this.destroy$.next(); // гасим все подписки текущего запуска
+    this.destroy$ = new Subject<void>(); // создаём новый на следующий цикл жизни
+    //this.destroy$.complete();
+
+    this.input.keyboard?.removeAllListeners(); // TODO нужно заново подписаться?
+
+    this._remotePlayers.forEach(p => p.destroy());
+    this._bots.forEach(b => b.destroy());
+    this._bullets.forEach(b => b.destroy());
+    this._enemyBullets.forEach(b => b.destroy());
+    this._healthTexts.forEach(t => t.destroy());
+    this._playerSprite.destroy();
+    this._playerHealthText.destroy();
+    this._scoreText.destroy();
+    this.fpsText.destroy();
+
+    this.store.dispatch(resetAll());
+
+    console.log("multiplayer shutdown");
   }
 
   override update() {

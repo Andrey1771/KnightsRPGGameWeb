@@ -1,8 +1,14 @@
+import * as Phaser from 'phaser';
 import InputText from 'phaser3-rex-plugins/plugins/inputtext';
 import { PhaserMusicService } from "../../services/phaser-music-service/phaser-music-service";
-import { LocalStorageService } from "ngx-webstorage";
-import { generateFunnyNick } from '../../utils/nick-generator';
-import {SignalRService} from "../../services/signal-r-service/signal-r-service";
+import { SignalRService } from "../../services/signal-r-service/signal-r-service";
+import { Store } from '@ngrx/store';
+import { selectPlayerName } from "../store/player-settings/player-settings.selectors";
+import { generateRandomName, setPlayerName } from '../store/player-settings/player-settings.actions';
+import {Subject, take, takeUntil} from "rxjs";
+import {PlayerSettingsState} from "../store/player-settings/player-settings.reducer";
+import {GameState} from "../store/game/game.state";
+import {selectLobbyName} from "../store/lobby/lobby.selectors";
 
 interface UIOverlayData {
   showName?: boolean;
@@ -12,20 +18,26 @@ interface UIOverlayData {
 
 export class UIOverlayScene extends Phaser.Scene {
   private _phaserMusicService!: PhaserMusicService;
-  private _storage!: LocalStorageService;
+  private _playerSettingsStore!: Store<{ playerSettings: PlayerSettingsState }>;
+  private _gameStateStore!: Store<GameState>;
   private _signalRService!: SignalRService;
 
   private playerNameInput?: InputText;
   private pauseButton?: Phaser.GameObjects.Text;
 
-  constructor(signalRService: SignalRService, phaserMusicService: PhaserMusicService, storage: LocalStorageService) {
-    super({ key: 'UIOverlayScene', active: true });
-    this._signalRService = signalRService;
-    this._phaserMusicService = phaserMusicService;
-    this._storage = storage;
+  private destroy$ = new Subject<void>();
+
+  constructor() {
+    super({ key: 'UIOverlayScene' });
   }
 
   create(data?: UIOverlayData) {
+    // Берём сервисы из глобального реестра
+    this._signalRService = this.registry.get('signalR');
+    this._phaserMusicService = this.registry.get('musicService');
+    this._playerSettingsStore = this.registry.get('playerSettingsStore');
+    this._gameStateStore = this.registry.get('lobbyStore');//TODO Ошибка брать lobbyStore?
+
     const { width } = this.scale;
 
     // Музыка кнопка
@@ -75,15 +87,12 @@ export class UIOverlayScene extends Phaser.Scene {
 
     // Поле имени (если включено)
     if (data?.showName) {
-      const savedName = String(this._storage.retrieve('playerName') || '');
-
       this.playerNameInput = this.rexUI.add.inputText({
         x: 20,
         y: 60,
         width: 250,
         height: 40,
         type: 'text',
-        text: savedName,
         fontSize: '20px',
         color: '#ffffff',
         backgroundColor: '#000000',
@@ -92,9 +101,15 @@ export class UIOverlayScene extends Phaser.Scene {
         readOnly: !!data.readOnly,
       }).setOrigin(0, 0.5);
 
+      this._playerSettingsStore.select(selectPlayerName).pipe(takeUntil(this.destroy$)).subscribe((playerName) => {
+        if (this.playerNameInput) {
+          this.playerNameInput.text = playerName ?? '';
+        }
+      });
+
       if (!data.readOnly) {
         this.playerNameInput.on('textchange', (input: InputText) => {
-          this._storage.store('playerName', String(input.text));
+          this._playerSettingsStore.dispatch(setPlayerName({ name: String(input.text) }));
         });
 
         // Кнопка генерации ника
@@ -117,9 +132,7 @@ export class UIOverlayScene extends Phaser.Scene {
         generateButton.on('pointerout', () => generateButton.setStyle({ backgroundColor: '#000000' }));
         generateButton.on('pointerdown', () => {
           if (!this.playerNameInput) return;
-          const funnyNick = generateFunnyNick();
-          this.playerNameInput.text = funnyNick;
-          this._storage.store('playerName', String(funnyNick));
+          this._playerSettingsStore.dispatch(generateRandomName());
         });
       }
     }
@@ -148,13 +161,24 @@ export class UIOverlayScene extends Phaser.Scene {
         this.pauseButton?.setStyle({ backgroundColor: '#000000' })
       );
       this.pauseButton.on('pointerdown', async () => {
-        const room = this._signalRService.currentRoomName;
-        if (!room) {
-          console.warn("Нет названия комнаты в SignalRService");
-          return;
-        }
-        await this._signalRService.connection.invoke("TogglePause", room);
+        this._gameStateStore.select(selectLobbyName).pipe(take(1)).pipe(takeUntil(this.destroy$)).subscribe(async (roomName) => {
+          if (roomName === "") {
+            console.warn("Нет названия комнаты в GameStateStore");
+            return;
+          }
+          await this._signalRService.invokeSafe("TogglePause", roomName);
+          }
+        );///////////////TODO
       });
     }
+
+    this.events.once('shutdown', this.shutDownListener, this);
+  }
+
+  shutDownListener() {
+    this.destroy$.next(); // гасим все подписки текущего запуска
+    this.destroy$ = new Subject<void>(); // создаём новый на следующий цикл жизни
+    //this.destroy$.complete();
+    console.log("ui overlay shutdown");
   }
 }

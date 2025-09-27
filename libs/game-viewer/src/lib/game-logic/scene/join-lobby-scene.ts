@@ -1,28 +1,31 @@
 import * as Phaser from 'phaser';
-import { SignalRService } from "../../services/signal-r-service/signal-r-service";
+import { Store } from '@ngrx/store';
+import { JoinLobbyState } from '../store/join-lobby/join-lobby.state';
+import * as JoinLobbyActions from '../../game-logic/store/join-lobby/join-lobby.actions';
 import { PhaserInputText } from '../../phaser-ui/phaser-input-text';
-import {LocalStorageService} from "ngx-webstorage";
+import {Subject, take, takeUntil} from "rxjs";
+import {PlayerSettingsState} from "../store/player-settings/player-settings.reducer";
+import {selectPlayerName} from "../store/player-settings/player-settings.selectors";
 
 export class JoinLobbyScene extends Phaser.Scene {
-  private inputText!: Phaser.GameObjects.Text;
-  private lobbyName = '';
-
   private joinButton!: Phaser.GameObjects.Text;
   private backButton!: Phaser.GameObjects.Text;
-
-  private _signalRService!: SignalRService;
-  private _storage!: LocalStorageService;
-
   private inputField!: PhaserInputText;
 
-  constructor(signalRService: SignalRService, storage: LocalStorageService) {
+  private store!: Store<{ joinLobby: JoinLobbyState }>;
+  private _playerSettingsStore!: Store<{ playerSettings: PlayerSettingsState }>;
+
+  private destroy$ = new Subject<void>();
+
+  constructor() {
     super({ key: 'JoinLobbyScene' });
-    this._signalRService = signalRService;
-    this._storage = storage;
   }
 
-  async create() {
+  create() {
     this.scene.launch('UIOverlayScene', { showPauseButton: false, showName: true, readOnly: true });
+
+    this.store = this.registry.get('joinLobbyStore');
+    this._playerSettingsStore = this.registry.get('playerSettingsStore');
 
     const { width, height } = this.scale;
 
@@ -44,26 +47,31 @@ export class JoinLobbyScene extends Phaser.Scene {
         return;
       }
 
-      await this._signalRService.startConnection();
-
-      this._signalRService.connection.on("Error", (errorMessage: string) => {
-        alert(`Ошибка: ${errorMessage}`);
+      this._playerSettingsStore.select(selectPlayerName).pipe(take(1)).pipe(takeUntil(this.destroy$)).subscribe((playerName) => {
+        //this.store.dispatch(JoinLobbyActions.setLobbyName({ name: lobbyName }));
+        this.store.dispatch(JoinLobbyActions.joinLobby({ name: lobbyName, playerName }));
       });
-
-      this._signalRService.connection.on("PlayerJoined", (playerId: string) => {
-        const lobbyName = this.inputField.getValue();
-        this.joinButton.destroy();
-        this.scene.start('LobbyScene', { lobbyName });
-      });
-
-      await this._signalRService.connection.invoke("JoinRoom", lobbyName, this._storage.retrieve("playerName"));
     });
 
     this.backButton = this.createButtonElement(width / 2, height * 0.7, 'Назад в меню', () => {
-      this.inputField.destroy();
-      this.backButton.destroy();
       this.scene.start('MainMenuScene');
     });
+
+    this.store.select('joinLobby').pipe(takeUntil(this.destroy$)).subscribe(state => {
+      if (state.loading) this.joinButton.setText('Подключение...');
+      else this.joinButton.setText('Присоединиться');
+
+      if (state.error) {
+        alert(state.error);
+        return;
+      }
+
+      if (!state.loading && !state.error && state.lobbyName) {
+        this.scene.start('LobbyScene', { lobbyName: state.lobbyName });
+      }
+    });
+
+    this.events.once('shutdown', this.shutDownListener, this);
   }
 
   createButtonElement(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Text {
@@ -82,15 +90,11 @@ export class JoinLobbyScene extends Phaser.Scene {
     return button;
   }
 
-  async joinLobby() {
-    const lobbyName = this.lobbyName.trim();
-    if (!lobbyName) {
-      console.warn('Введите название лобби');
-      return;
-    }
-
-    console.log(`Присоединение к лобби: ${lobbyName}`);
-    await this._signalRService.connection.invoke("JoinRoom", lobbyName);
-    this.scene.start('LobbyScene', { lobbyName });
+  shutDownListener() {
+    this.destroy$.next(); // гасим все подписки текущего запуска
+    this.destroy$ = new Subject<void>(); // создаём новый на следующий цикл жизни
+    //TODO Очистить состояния в NgRx
+    //this.destroy$.complete();
+    console.log("joinLobby shutdown");
   }
 }

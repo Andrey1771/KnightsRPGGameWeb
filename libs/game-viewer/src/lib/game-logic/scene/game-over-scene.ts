@@ -6,9 +6,8 @@ export class GameOverScene extends Phaser.Scene {
 
   private _signalRService!: SignalRService;
 
-  constructor(signalRService: SignalRService,) {
+  constructor() {
     super({ key: 'GameOverScene' });
-    this._signalRService = signalRService;
   }
 
   init(data: { score: number }) {
@@ -16,6 +15,8 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   create() {
+    this._signalRService =  this.registry.get('signalR');
+
     const { width, height } = this.scale;
 
 // Полупрозрачный фон

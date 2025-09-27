@@ -9,12 +9,13 @@ export class SettingsScene extends Phaser.Scene {
   private sliderHeight = 20;
   private currentVolume = 1; // 1 = 100%, 0 = 0%
 
-  constructor(phaserMusicService: PhaserMusicService) {
+  constructor() {
     super({ key: 'SettingsScene' });
-    this._phaserMusicService = phaserMusicService;
   }
 
   create() {
+    this._phaserMusicService = this.registry.get('musicService');
+
     this.scene.launch('UIOverlayScene', { showPauseButton: false, showName: false, readOnly: true });
 
     this.currentVolume = this._phaserMusicService.getSettings().volume;

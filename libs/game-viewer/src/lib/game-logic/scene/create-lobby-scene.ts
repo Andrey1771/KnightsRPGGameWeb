@@ -1,28 +1,34 @@
 import * as Phaser from 'phaser';
-import { SignalRService } from "../../services/signal-r-service/signal-r-service";
+import { Store } from '@ngrx/store';
+import { CreateLobbyState } from '../store/create-lobby/create-lobby.state';
+import * as CreateLobbyActions from '../../game-logic/store/create-lobby/create-lobby.actions';
 import { PhaserInputText } from '../../phaser-ui/phaser-input-text';
-import { LocalStorageService } from "ngx-webstorage";
-import { PlayerInfoResponseDto } from "../../dto/player-info-response-dto";
+import {Subject, takeUntil} from 'rxjs';
+import {PlayerSettingsState} from "../store/player-settings/player-settings.reducer";
+import {selectPlayerName} from "../store/player-settings/player-settings.selectors";
+import { resetCreateLobby } from '../store/create-lobby/create-lobby.actions';
 
 export class CreateLobbyScene extends Phaser.Scene {
   private inputField!: PhaserInputText;
   private createButton!: Phaser.GameObjects.Text;
   private backButton!: Phaser.GameObjects.Text;
-
   private playerListTexts: Phaser.GameObjects.Text[] = [];
-  private currentLobbyName = '';
 
-  private _signalRService!: SignalRService;
-  private _storage!: LocalStorageService;
+  private createLobbyStore!: Store<{ createLobby: CreateLobbyState }>;
+  private _playerSettingsStore!: Store<{ playerSettings: PlayerSettingsState }>;
 
-  constructor(signalRService: SignalRService, storage: LocalStorageService) {
+  private destroy$ = new Subject<void>();
+
+  constructor() {
     super({ key: 'CreateLobbyScene' });
-    this._signalRService = signalRService;
-    this._storage = storage;
   }
 
   create() {
+
     this.scene.launch('UIOverlayScene', { showPauseButton: false, showName: true, readOnly: true });
+
+    this.createLobbyStore = this.registry.get('createLobbyStore');
+    this._playerSettingsStore = this.registry.get('playerSettingsStore');
 
     const { width, height } = this.scale;
 
@@ -37,14 +43,38 @@ export class CreateLobbyScene extends Phaser.Scene {
 
     this.inputField = new PhaserInputText(this, width / 2, height / 4, 'Введите название лобби');
 
-    this.createButton = this.createButtonElement(width / 2, height * 0.6, 'Создать лобби', async () => {
-      await this.createLobby();
+    this._playerSettingsStore.select(selectPlayerName).pipe(takeUntil(this.destroy$)).subscribe((playerName) => {
+      this.createButton = this.createButtonElement(width / 2, height * 0.6, 'Создать лобби', async () => {
+        const lobbyName = this.inputField.getValue();
+        const maxPlayers = 4; // TODO Пока хардкор
+        console.log("lobbyName: ", lobbyName);
+        //this.createLobbyStore.dispatch(CreateLobbyActions.setLobbyParams({ lobbyName, playerName, maxPlayers }));
+        this.createLobbyStore.dispatch(CreateLobbyActions.createLobby({ lobbyName, playerName, maxPlayers }));
+      });
     });
 
     this.backButton = this.createButtonElement(width / 2, height * 0.7, 'Назад в меню', () => {
-      this.inputField.destroy();
+
       this.scene.start('MainMenuScene');
     });
+
+    // Подписка на Store
+    this.createLobbyStore.select('createLobby').pipe(takeUntil(this.destroy$)).subscribe(state => {
+      //this.createButton.setText(state.loading ? 'Создание...' : 'Создать лобби');
+
+      if (state.error) {
+        alert(state.error);
+        return;
+      }
+
+      if (!state.loading && state.lobbyName) {
+        this.inputField.destroy();
+        this.scene.start('LobbyScene', { lobbyName: state.lobbyName });
+        this.updatePlayerList(state.players ?? []);
+      }
+    });
+
+    this.events.once('shutdown', this.shutDownListener, this);
   }
 
   createButtonElement(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Text {
@@ -63,59 +93,28 @@ export class CreateLobbyScene extends Phaser.Scene {
     return button;
   }
 
-  async createLobby() {
-    const lobbyName = this.inputField.getValue();
-
-    if (!lobbyName) {
-      alert('Введите название лобби');
-      return;
-    }
-
-    console.log(`Создание лобби с названием: ${lobbyName}`);
-    this.currentLobbyName = lobbyName;
-    await this.createRoom(lobbyName, 4 /* заглушка */);
-  }
-
-  setLobbyScene(lobbyName: string) {
-    this.inputField.destroy();
-    this.scene.start('LobbyScene', { lobbyName });
-  }
-
-  async createRoom(roomName: string, maxPlayers: number) {
-    await this._signalRService.startConnection();
-
-    this._signalRService.connection.on("Error", (errorMessage: string) => {
-      alert(`Ошибка: ${errorMessage}`);
-    });
-
-    this._signalRService.connection.on("RoomCreated", (roomName: string) => {
-      this.setLobbyScene(roomName);
-    });
-
-    await this._signalRService.connection.invoke("CreateRoom", roomName, this._storage.retrieve("playerName"), maxPlayers);
-  }
-
-  updatePlayerList(players: string[]) {
+  updatePlayerList(players: string[]) { //TODO Лишнее??
     this.playerListTexts.forEach(text => text.destroy());
     this.playerListTexts = [];
 
     const startX = this.scale.width / 2;
     const startY = this.scale.height * 0.35;
 
-    this.add.text(startX, startY - 40, 'Игроки в лобби:', {
-      fontSize: '32px',
-      fontFamily: 'Arial',
-      color: '#ffffff'
-    }).setOrigin(0.5);
-
     players.forEach((player, index) => {
       const playerText = this.add.text(startX, startY + index * 30, `Игрок ${index + 1}: ${player}`, {
         fontSize: '24px',
-        fontFamily: 'Arial',
         color: '#00ff00'
       }).setOrigin(0.5);
-
       this.playerListTexts.push(playerText);
     });
+  }
+
+  shutDownListener() {
+    this.createLobbyStore.dispatch(resetCreateLobby());
+    this.destroy$.next(); // гасим все подписки текущего запуска
+    this.destroy$ = new Subject<void>(); // создаём новый на следующий цикл жизни
+    //TODO Очистить состояния в NgRx
+    //this.destroy$.complete();
+    console.log("createLobby shutdown");
   }
 }
