@@ -7,6 +7,8 @@ import * as MultiplayerActions from './multiplayer.actions';
 import { SignalRService } from '../../../services/signal-r-service/signal-r-service';
 import { selectScore } from './multiplayer.selectors';
 import { MultiplayerState } from './multiplayer.state';
+import * as GlobalActions from "../global/global.actions";
+import * as LobbyActions from "../lobby/lobby.actions";
 
 @Injectable()
 export class MultiplayerEffects {
@@ -35,6 +37,13 @@ export class MultiplayerEffects {
           catchError((err) => of(MultiplayerActions.saveResultFailure({ error: err })))
         );
       })
+    )
+  );
+
+  multiplayerError$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(GlobalActions.signalRError),
+      map(({ error }) => MultiplayerActions.multiplayerFailure({ error }))
     )
   );
 }

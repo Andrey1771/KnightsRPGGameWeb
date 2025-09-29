@@ -1,7 +1,8 @@
 import {inject, Injectable} from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import * as CreateLobbyActions from './create-lobby.actions';
-import {from, of } from 'rxjs';
+import * as GlobalActions from '../global/global.actions';
+import {exhaustMap, from, of} from 'rxjs';
 import { catchError, map, switchMap, withLatestFrom } from 'rxjs/operators';
 import { SignalRService } from '../../../services/signal-r-service/signal-r-service';
 import { Store } from '@ngrx/store';
@@ -13,16 +14,14 @@ export class CreateLobbyEffects {
   private signalR = inject(SignalRService);
   private store = inject(Store<{ createLobby: CreateLobbyState }>);
 
-
   createLobby$ = createEffect(() =>
     this.actions$.pipe(
       ofType(CreateLobbyActions.createLobby),
       withLatestFrom(this.store.select(state => state.createLobby)),
-      switchMap(([_, createLobbyState]) =>
+      exhaustMap(([_, createLobbyState]) =>
         this.signalR.startConnection().pipe(
-          switchMap(() => {
-            console.log("lobbyName 2: ", createLobbyState.lobbyName);
-            return from(
+          switchMap(() =>
+            from(
               this.signalR.invokeSafe(
                 "CreateRoom",
                 createLobbyState.lobbyName,
@@ -30,22 +29,26 @@ export class CreateLobbyEffects {
                 createLobbyState.maxPlayers
               )
             ).pipe(
-              map(() => ({ type: '[CreateLobby] Create Room Invoked' })),
+              map(() =>
+                CreateLobbyActions.createLobbySuccess({
+                  lobbyName: createLobbyState.lobbyName,
+                  playerName: createLobbyState.playerName,
+                  maxPlayers: createLobbyState.maxPlayers
+                })
+              ),
               catchError((err) =>
                 of(
                   CreateLobbyActions.createLobbyFailure({
-                    error: err.message || 'Ошибка при создании комнаты',
+                    error: err?.message || 'Ошибка при создании комнаты',
                   })
                 )
               )
             )
-          }
-
           ),
           catchError((err) =>
             of(
               CreateLobbyActions.createLobbyFailure({
-                error: err.message || 'Ошибка подключения',
+                error: err?.message || 'Ошибка подключения',
               })
             )
           )
@@ -54,4 +57,10 @@ export class CreateLobbyEffects {
     )
   );
 
+  createLobbyError$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(GlobalActions.signalRError),
+      map(({ error }) => CreateLobbyActions.createLobbyFailure({ error }))
+    )
+  );
 }

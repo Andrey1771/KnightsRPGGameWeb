@@ -25,3 +25,5 @@ export const clearPlayerDied = createAction('[Multiplayer] Clear Player Died');
 export const saveResult = createAction('[Multiplayer] Save Result', props<{ playerName: string; score: number }>());
 export const saveResultSuccess = createAction('[Multiplayer] Save Result Success');
 export const saveResultFailure = createAction('[Multiplayer] Save Result Failure', props<{ error: any }>());
+
+export const multiplayerFailure = createAction('[Multiplayer] Multiplayer Failure', props<{ error: string }>());

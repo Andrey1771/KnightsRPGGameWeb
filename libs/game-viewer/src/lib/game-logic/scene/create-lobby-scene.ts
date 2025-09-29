@@ -2,11 +2,14 @@ import * as Phaser from 'phaser';
 import { Store } from '@ngrx/store';
 import { CreateLobbyState } from '../store/create-lobby/create-lobby.state';
 import * as CreateLobbyActions from '../../game-logic/store/create-lobby/create-lobby.actions';
+import * as LobbyActions from '../../game-logic/store/lobby/lobby.actions';
 import { PhaserInputText } from '../../phaser-ui/phaser-input-text';
 import {Subject, takeUntil} from 'rxjs';
 import {PlayerSettingsState} from "../store/player-settings/player-settings.reducer";
 import {selectPlayerName} from "../store/player-settings/player-settings.selectors";
 import { resetCreateLobby } from '../store/create-lobby/create-lobby.actions';
+import { selectCreateLobbyState } from "../store/create-lobby/create-lobby.selectors";
+import { LobbyState } from '../store/lobby/lobby.state';
 
 export class CreateLobbyScene extends Phaser.Scene {
   private inputField!: PhaserInputText;
@@ -15,6 +18,7 @@ export class CreateLobbyScene extends Phaser.Scene {
   private playerListTexts: Phaser.GameObjects.Text[] = [];
 
   private createLobbyStore!: Store<{ createLobby: CreateLobbyState }>;
+  private lobbyStore!: Store<{ lobby: LobbyState }>;
   private _playerSettingsStore!: Store<{ playerSettings: PlayerSettingsState }>;
 
   private destroy$ = new Subject<void>();
@@ -29,6 +33,7 @@ export class CreateLobbyScene extends Phaser.Scene {
 
     this.createLobbyStore = this.registry.get('createLobbyStore');
     this._playerSettingsStore = this.registry.get('playerSettingsStore');
+    this.lobbyStore = this.registry.get('lobbyStore');
 
     const { width, height } = this.scale;
 
@@ -59,7 +64,7 @@ export class CreateLobbyScene extends Phaser.Scene {
     });
 
     // Подписка на Store
-    this.createLobbyStore.select('createLobby').pipe(takeUntil(this.destroy$)).subscribe(state => {
+    this.createLobbyStore.select(selectCreateLobbyState).pipe(takeUntil(this.destroy$)).subscribe(state => {
       //this.createButton.setText(state.loading ? 'Создание...' : 'Создать лобби');
 
       if (state.error) {
@@ -69,8 +74,12 @@ export class CreateLobbyScene extends Phaser.Scene {
 
       if (!state.loading && state.lobbyName) {
         this.inputField.destroy();
-        this.scene.start('LobbyScene', { lobbyName: state.lobbyName });
-        this.updatePlayerList(state.players ?? []);
+        this.lobbyStore.dispatch(LobbyActions.setLobbyParams({
+          lobbyName: state.lobbyName,
+          playerName: state.playerName,
+          maxPlayers: state.maxPlayers
+        }));
+        this.scene.start('LobbyScene');
       }
     });
 
@@ -91,22 +100,6 @@ export class CreateLobbyScene extends Phaser.Scene {
     button.on('pointerdown', callback);
 
     return button;
-  }
-
-  updatePlayerList(players: string[]) { //TODO Лишнее??
-    this.playerListTexts.forEach(text => text.destroy());
-    this.playerListTexts = [];
-
-    const startX = this.scale.width / 2;
-    const startY = this.scale.height * 0.35;
-
-    players.forEach((player, index) => {
-      const playerText = this.add.text(startX, startY + index * 30, `Игрок ${index + 1}: ${player}`, {
-        fontSize: '24px',
-        color: '#00ff00'
-      }).setOrigin(0.5);
-      this.playerListTexts.push(playerText);
-    });
   }
 
   shutDownListener() {

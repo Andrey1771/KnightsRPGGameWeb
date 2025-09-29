@@ -20,6 +20,8 @@ export interface MultiplayerState {
 
   playerHit: PlayerHitDto | null;
   playerDied: PlayerDiedDto | null;
+
+  error: string | null;
 }
 
 export const initialMultiplayerState: MultiplayerState = {
@@ -33,4 +35,6 @@ export const initialMultiplayerState: MultiplayerState = {
 
   playerHit: null,
   playerDied: null,
+
+  error: null
 };

@@ -5,11 +5,15 @@ export interface LobbyState {
   players: PlayerInfo[];
   leaderConnectionId: string | null;
   gameStarted: boolean;
+
+  error: string | null;
 }
 
 export const initialLobbyState: LobbyState = {
   lobbyName: '',
   players: [],
   leaderConnectionId: null,
-  gameStarted: false
+  gameStarted: false,
+
+  error: null
 };

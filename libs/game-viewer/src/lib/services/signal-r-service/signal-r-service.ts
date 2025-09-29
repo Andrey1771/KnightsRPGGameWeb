@@ -1,13 +1,25 @@
 import { Injectable } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 import { Store } from '@ngrx/store';
-import { Subject, fromEventPattern, Observable, of, firstValueFrom } from 'rxjs';
+import {
+  Subject,
+  fromEventPattern,
+  Observable,
+  of,
+  firstValueFrom,
+  defer,
+  from,
+  tap,
+  throwError,
+  ReplaySubject
+} from 'rxjs';
 import { takeUntil, catchError } from 'rxjs/operators';
-import { GameState } from '../../game-logic/store/game/game.state';
-import * as GameActions from '../../game-logic/store/game/game.actions';
 import * as MultiplayerActions from '../../game-logic/store/multiplayer/multiplayer.actions';
 import * as CreateLobbyActions from '../../game-logic/store/create-lobby/create-lobby.actions';
+import * as GlobalActions from '../../game-logic/store/global/global.actions';
+import * as LobbyActions from '../../game-logic/store/lobby/lobby.actions';
 import { PlayerPositionDto } from '../../dto/player-position-dto';
+import { LobbyState } from '../../game-logic/store/lobby/lobby.state';
 
 @Injectable({ providedIn: 'root' })
 export class SignalRService {
@@ -19,9 +31,9 @@ export class SignalRService {
 
   public botDied$ = new Subject<{ id: string }>();
 
-  private connectionEstablished$ = new Subject<void>();
+  private connectionEstablished$ = new ReplaySubject<void>(1);
 
-  constructor(private store: Store<GameState>) {}
+  constructor(private store: Store<LobbyState>) {}
 
   public startConnection(): Observable<void> {
     this.hubConnection = new signalR.HubConnectionBuilder()
@@ -29,24 +41,16 @@ export class SignalRService {
       .withAutomaticReconnect()
       .build();
 
-    return new Observable<void>((observer) => {
-      this.hubConnection
-        .start()
-        .then(() => {
+    return defer(() =>
+      from(this.hubConnection.start()).pipe(
+        tap(() => {
           console.log('SignalR connected');
           this.registerHandlers();
-          observer.next();
-          observer.complete();
           this.connectionEstablished$.next();
-        })
-        .catch((err) => observer.error(err));
-    }).pipe(
-      takeUntil(this.destroy$),
-      catchError((err) => {
-        console.error('SignalR connection error', err);
-        return of(); // Возвращаем пустой Observable при ошибке
-      })
-    );
+        }),
+        catchError(err => throwError(() => new Error('Ошибка подключения: ' + err)))
+      )
+    ).pipe(takeUntil(this.destroy$));
   }
 
   public waitForConnection(): Promise<void> {
@@ -82,7 +86,7 @@ export class SignalRService {
     // GameActions
     addHandler('ReceivePlayerList', (dto: any) => {
       console.log('ReceivePlayerList', dto);
-      return GameActions.updatePlayers({
+      return LobbyActions.updatePlayers({
           players: dto.playerInfos,
           leaderConnectionId: dto.leaderConnectionId,
         })
@@ -90,18 +94,22 @@ export class SignalRService {
     );
 
     addHandler('GameStarted', (data: any) =>
-      GameActions.startGame({
+      LobbyActions.startGame({
         initialPositions: data.initialPositions,
         bots: data.bots,
       })
     );
 
-    addHandler('RoomCreated', (roomName: string) =>
-      CreateLobbyActions.createLobbySuccess({ lobbyName: roomName })
+    addHandler('RoomCreated', (data: any) =>
+      CreateLobbyActions.createLobbySuccess({ lobbyName: data.roomName, playerName:  data.playerName, maxPlayers:  data.maxPlayers })
     );
 
     addHandler('Error', (errorMessage: string) =>
       CreateLobbyActions.createLobbyFailure({ error: errorMessage })
+    );
+
+    addHandler('Error', (errorMessage: string) =>
+      GlobalActions.signalRError({ error: errorMessage })
     );
 
     // MultiplayerActions

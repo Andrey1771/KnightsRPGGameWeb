@@ -3,9 +3,12 @@ import { Store } from '@ngrx/store';
 import { JoinLobbyState } from '../store/join-lobby/join-lobby.state';
 import * as JoinLobbyActions from '../../game-logic/store/join-lobby/join-lobby.actions';
 import { PhaserInputText } from '../../phaser-ui/phaser-input-text';
-import {Subject, take, takeUntil} from "rxjs";
-import {PlayerSettingsState} from "../store/player-settings/player-settings.reducer";
-import {selectPlayerName} from "../store/player-settings/player-settings.selectors";
+import { Subject, take, takeUntil } from "rxjs";
+import { PlayerSettingsState } from "../store/player-settings/player-settings.reducer";
+import { selectPlayerName } from "../store/player-settings/player-settings.selectors";
+import { resetJoinLobby } from '../store/join-lobby/join-lobby.actions';
+import * as LobbyActions from "../store/lobby/lobby.actions";
+import { LobbyState } from "../store/lobby/lobby.state";
 
 export class JoinLobbyScene extends Phaser.Scene {
   private joinButton!: Phaser.GameObjects.Text;
@@ -14,6 +17,7 @@ export class JoinLobbyScene extends Phaser.Scene {
 
   private store!: Store<{ joinLobby: JoinLobbyState }>;
   private _playerSettingsStore!: Store<{ playerSettings: PlayerSettingsState }>;
+  private lobbyStore!: Store<{ lobby: LobbyState }>;
 
   private destroy$ = new Subject<void>();
 
@@ -26,6 +30,7 @@ export class JoinLobbyScene extends Phaser.Scene {
 
     this.store = this.registry.get('joinLobbyStore');
     this._playerSettingsStore = this.registry.get('playerSettingsStore');
+    this.lobbyStore = this.registry.get('lobbyStore');
 
     const { width, height } = this.scale;
 
@@ -67,6 +72,11 @@ export class JoinLobbyScene extends Phaser.Scene {
       }
 
       if (!state.loading && !state.error && state.lobbyName) {
+        this.lobbyStore.dispatch(LobbyActions.setLobbyParams({
+          lobbyName: state.lobbyName,
+          playerName: state.playerName,
+          maxPlayers: 4 // TODO Пока хардкод
+        }));
         this.scene.start('LobbyScene', { lobbyName: state.lobbyName });
       }
     });
@@ -91,6 +101,7 @@ export class JoinLobbyScene extends Phaser.Scene {
   }
 
   shutDownListener() {
+    this.store.dispatch(resetJoinLobby());
     this.destroy$.next(); // гасим все подписки текущего запуска
     this.destroy$ = new Subject<void>(); // создаём новый на следующий цикл жизни
     //TODO Очистить состояния в NgRx

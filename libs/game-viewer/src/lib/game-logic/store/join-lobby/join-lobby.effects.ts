@@ -1,10 +1,11 @@
-import {inject, Injectable} from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import * as JoinLobbyActions from './join-lobby.actions';
+import * as GlobalActions from '../global/global.actions';
 import { SignalRService } from '../../../services/signal-r-service/signal-r-service';
-import {switchMap, withLatestFrom} from "rxjs/operators";
-import {Store} from "@ngrx/store";
+import { Store } from '@ngrx/store';
 import { JoinLobbyState } from './join-lobby.state';
+import { exhaustMap, switchMap, withLatestFrom, map, catchError, from } from 'rxjs';
 
 @Injectable()
 export class JoinLobbyEffects {
@@ -12,23 +13,42 @@ export class JoinLobbyEffects {
   private signalR = inject(SignalRService);
   private store = inject(Store<{ joinLobby: JoinLobbyState }>);
 
-  constructor() {}
-
   joinLobby$ = createEffect(() =>
     this.actions$.pipe(
       ofType(JoinLobbyActions.joinLobby),
       withLatestFrom(this.store.select(state => state.joinLobby)),
-      switchMap(([_, joinLobbyState]) => {
-        return this.signalR.startConnection().pipe(
-          switchMap(() => {
-            const roomName = joinLobbyState.lobbyName;
-            const playerName = joinLobbyState.playerName;
-            return this.signalR.invokeSafe("JoinRoom", roomName, playerName).then(
-              () => JoinLobbyActions.joinLobbySuccess(),
-              (err: any) => JoinLobbyActions.joinLobbyFailure({error: err.message || 'Ошибка подключения'})
-            );
-          }))
-      })
+      exhaustMap(([_, joinLobbyState]) =>
+        this.signalR.startConnection().pipe(
+          switchMap(() =>
+            from(
+              this.signalR.invokeSafe(
+                'JoinRoom',
+                joinLobbyState.lobbyName,
+                joinLobbyState.playerName
+              )
+            ).pipe(
+              map(() => JoinLobbyActions.joinLobbySuccess()),
+              catchError((err: any) =>
+                [JoinLobbyActions.joinLobbyFailure({
+                  error: err?.message || 'Ошибка подключения'
+                })]
+              )
+            )
+          ),
+          catchError((err: any) =>
+            [JoinLobbyActions.joinLobbyFailure({
+              error: err?.message || 'Ошибка подключения к SignalR'
+            })]
+          )
+        )
+      )
+    )
+  );
+
+  joinLobbyError$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(GlobalActions.signalRError),
+      map(({ error }) => JoinLobbyActions.joinLobbyFailure({ error }))
     )
   );
 }

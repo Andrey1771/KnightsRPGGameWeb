@@ -7,8 +7,8 @@ import { selectPlayerName } from "../store/player-settings/player-settings.selec
 import { generateRandomName, setPlayerName } from '../store/player-settings/player-settings.actions';
 import {Subject, take, takeUntil} from "rxjs";
 import {PlayerSettingsState} from "../store/player-settings/player-settings.reducer";
-import {GameState} from "../store/game/game.state";
 import {selectLobbyName} from "../store/lobby/lobby.selectors";
+import { LobbyState } from '../store/lobby/lobby.state';
 
 interface UIOverlayData {
   showName?: boolean;
@@ -19,7 +19,7 @@ interface UIOverlayData {
 export class UIOverlayScene extends Phaser.Scene {
   private _phaserMusicService!: PhaserMusicService;
   private _playerSettingsStore!: Store<{ playerSettings: PlayerSettingsState }>;
-  private _gameStateStore!: Store<GameState>;
+  private _gameStateStore!: Store<LobbyState>;
   private _signalRService!: SignalRService;
 
   private playerNameInput?: InputText;

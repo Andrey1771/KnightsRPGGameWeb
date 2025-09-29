@@ -9,8 +9,8 @@ import {PlayerPositionDto} from "../../dto/player-position-dto";
 import * as MultiplayerActions from '../../game-logic/store/multiplayer/multiplayer.actions';
 import { resetAll } from '../store/global/global.actions';
 import {selectLobbyName} from "../store/lobby/lobby.selectors";
-import {GameState} from "../store/game/game.state";
 import {selectGameOver, selectMultiplayerState} from '../store/multiplayer/multiplayer.selectors';
+import { LobbyState } from '../store/lobby/lobby.state';
 
 export class MultiplayerScene extends Phaser.Scene {
   private _playerSprite!: Phaser.GameObjects.Sprite;
@@ -31,7 +31,7 @@ export class MultiplayerScene extends Phaser.Scene {
   private _pauseText?: Phaser.GameObjects.Text;
 
   private store!: Store<{ multiplayer: MultiplayerState }>;
-  private _gameStateStore!: Store<GameState>;
+  private _gameStateStore!: Store<LobbyState>;
   private signalRService!: SignalRService;
   private phaserMusicService!: PhaserMusicService;
 
@@ -79,6 +79,11 @@ export class MultiplayerScene extends Phaser.Scene {
 
     // Подписка на состояние через Store
     this.store.select(selectMultiplayerState).pipe(takeUntil(this.destroy$)).subscribe(state => {
+      if (state.error) {
+        alert(state.error);
+        return;
+      }
+
       // синхронизация сущностей
       this._syncPlayers(state.players);
       this._syncBots(state.bots);

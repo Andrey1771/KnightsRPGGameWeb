@@ -1,11 +1,11 @@
 import * as Phaser from 'phaser';
 import { SignalRService } from '../../services/signal-r-service/signal-r-service';
 import { Store } from '@ngrx/store';
-import { GameState } from '../store/game/game.state';
-import { Subject, take, takeUntil } from 'rxjs';
+import {firstValueFrom, Subject, take, takeUntil } from 'rxjs';
 import { PlayerInfo } from '../../models/player-info';
-import { resetLobby, setLobbyName } from "../store/lobby/lobby.actions";
-import {selectLobbyName} from "../store/lobby/lobby.selectors";
+import {resetLobby} from "../store/lobby/lobby.actions";
+import {selectLobbyName, selectLobbyState} from "../store/lobby/lobby.selectors";
+import { LobbyState } from '../store/lobby/lobby.state';
 
 export class LobbyScene extends Phaser.Scene {
   private playerListTexts: Phaser.GameObjects.Text[] = [];
@@ -14,7 +14,7 @@ export class LobbyScene extends Phaser.Scene {
   private backButton!: Phaser.GameObjects.Text;
 
   private signalR!: SignalRService;
-  private store!: Store<GameState>;
+  private store!: Store<LobbyState>;
 
   private destroy$ = new Subject<void>();
 
@@ -22,16 +22,16 @@ export class LobbyScene extends Phaser.Scene {
     super({ key: 'LobbyScene' });
   }
 
-  async create(data: { lobbyName: string }) {
+  async create() {
     this.signalR = this.registry.get('signalR');
     this.store = this.registry.get('lobbyStore');
 
-    this.store.dispatch(setLobbyName({ name: data.lobbyName })); //TODO Переделать в одно хранилище
+    const lobbyName = await firstValueFrom(
+      this.store.select(selectLobbyName)
+    );
 
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor('#1a1a1a');
-
-
 
     const startX = this.scale.width / 2;
     const startY = this.scale.height * 0.3;
@@ -49,12 +49,9 @@ export class LobbyScene extends Phaser.Scene {
       this.scene.start('MainMenuScene');
     });
 
-
-
-
     this.startButton = this.createButtonElement(width / 2, height * 0.7, 'Начать игру', async () => {
         try {
-          await this.signalR.invokeSafe("StartGame", data.lobbyName);
+          await this.signalR.invokeSafe("StartGame", lobbyName);
         } catch (err) {
           console.error("Ошибка при старте игры:", err);
         }
@@ -67,11 +64,16 @@ export class LobbyScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    this.store.select(state => state.lobby).pipe(takeUntil(this.destroy$)).subscribe(async lobby => {
+    this.store.select(selectLobbyState).pipe(takeUntil(this.destroy$)).subscribe(async lobby => {
       console.log("leaderConnectionId:", lobby.leaderConnectionId, typeof lobby.leaderConnectionId);
       console.log("connectionId:", this.signalR.connectionId, typeof this.signalR.connectionId);
       if (!this.signalR.connectionId && !lobby.leaderConnectionId) {
         return; // пока нет id, ничего не показываем
+      }
+
+      if (lobby.error) {
+        alert(lobby.error);
+        return;
       }
 
       this.lobbyNameText.text = `Лобби: ${lobby.lobbyName}`;
@@ -87,7 +89,7 @@ export class LobbyScene extends Phaser.Scene {
         this.scene.start('MultiplayerScene');
       }
     });
-    await this.signalR.invokeSafe("GetPlayerList", data.lobbyName); // TODO Переделать на NgRx
+    await this.signalR.invokeSafe("GetPlayerList", lobbyName); // TODO Переделать на NgRx
 
     this.events.once('shutdown', this.shutDownListener, this);
   }
