@@ -199,9 +199,14 @@ export class MultiplayerScene extends Phaser.Scene {
     Object.entries(bullets).forEach(([id, b]) => {
       let sprite = targetMap.get(id);
       if (!sprite) {
+        // новая пуля
         sprite = this.add.rectangle(b.x, b.y, 5, 10, isEnemy ? 0xff0000 : 0xffffff);
         this.physics.add.existing(sprite);
         targetMap.set(id, sprite);
+
+        this.phaserMusicService.playSound(
+          isEnemy ? SoundsTrack.EnemyLaser : SoundsTrack.PlayerLaser
+        );
       } else {
         sprite.setPosition(b.x, b.y);
       }
