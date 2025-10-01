@@ -12,6 +12,8 @@ export enum SoundsTrack {
   PlayerLaser = "player_laser",
   EnemyShipExplosion = "enemy_ship_explosion",
   PlayerShipExplosion = "player_ship_explosion",
+  InterfaceHover = "interface_hover",
+  InterfaceClick = "interface_click",
 }
 
 @Injectable({
@@ -68,6 +70,14 @@ export class PhaserMusicService {
     this.sounds.set(
       SoundsTrack.PlayerShipExplosion,
       this.soundManager.add(SoundsTrack.PlayerShipExplosion)
+    );
+    this.sounds.set(
+      SoundsTrack.InterfaceHover,
+      this.soundManager.add(SoundsTrack.InterfaceHover)
+    );
+    this.sounds.set(
+      SoundsTrack.InterfaceClick,
+      this.soundManager.add(SoundsTrack.InterfaceClick)
     );
   }
 

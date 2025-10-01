@@ -35,6 +35,9 @@ export class PreloaderScene extends Phaser.Scene {
     this.load.audio(SoundsTrack.EnemyShipExplosion, 'assets/sounds/enemy_ship_explosion.wav');
     this.load.audio(SoundsTrack.PlayerShipExplosion, 'assets/sounds/player_ship_explosion.wav');
 
+    this.load.audio(SoundsTrack.InterfaceHover, 'assets/sounds/interface_hover.wav');
+    this.load.audio(SoundsTrack.InterfaceClick, 'assets/sounds/interface_click.wav');
+
     // Загружаем спрайты и картинки
     this.load.image('background', 'assets/sprites/background/background.png');
     this.load.image('menuBg', 'assets/sprites/background/mainMenuBackground.jpg');
@@ -45,6 +48,13 @@ export class PreloaderScene extends Phaser.Scene {
     this.load.spritesheet('enemy_2', 'assets/sprites/enemies/enemy_2.png', { frameWidth: 256, frameHeight: 256 });
 
     this.load.glsl('nebula', 'assets/shaders/nebula.glsl');
+
+    // Текстура для звезды
+    const starGraphics = this.add.graphics();
+    starGraphics.fillStyle(0xffffff, 1);
+    starGraphics.fillCircle(2, 2, 2);
+    starGraphics.generateTexture('star', 4, 4);
+    starGraphics.destroy();
   }
 
   create() {
