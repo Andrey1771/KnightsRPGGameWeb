@@ -20,6 +20,10 @@ import { JoinLobbyState } from "../store/join-lobby/join-lobby.state";
 import { CreateLobbyState } from "../store/create-lobby/create-lobby.state";
 import { LobbyState } from '../store/lobby/lobby.state';
 import { PlayerSettingsState } from '../store/player-settings/player-settings.reducer';
+import {SpaceEnvironmentService} from "../../services/space-environment-service/space-environment.service";
+import {AsteroidFieldService} from "../../services/asteroid-field-service/asteroid-field.service";
+import {CometManagerService} from "../../services/comet-manager-service/comet-manager.service";
+import {PlanetManagerService} from "../../services/planet-manager-service/planet-manager.service";
 
 @Injectable({ providedIn: 'root' })
 export class GameManagerService {
@@ -33,7 +37,12 @@ export class GameManagerService {
     private _multiplayerStore: Store<{ multiplayer: MultiplayerState }>,
     private _joinLobbyStore: Store<{ joinLobby: JoinLobbyState }>,
     private _createLobbyStore: Store<{ createLobby: CreateLobbyState }>,
-    private _lobbyStore: Store<{ lobby: LobbyState }>
+    private _lobbyStore: Store<{ lobby: LobbyState }>,
+
+    private spaceEnvironmentService: SpaceEnvironmentService,
+    private asteroidFieldService: AsteroidFieldService,
+    private cometManagerService: CometManagerService,
+    private planetManagerService: PlanetManagerService,
   ) {
     this.initConfiguration();
   }
@@ -98,6 +107,12 @@ export class GameManagerService {
     this.phaserGame.registry.set('joinLobbyStore', this._joinLobbyStore);
     this.phaserGame.registry.set('createLobbyStore', this._createLobbyStore);
     this.phaserGame.registry.set('lobbyStore', this._lobbyStore);
+
+    this.phaserGame.registry.set('spaceEnvironmentService', this.spaceEnvironmentService);
+    this.phaserGame.registry.set('asteroidFieldService', this.asteroidFieldService);
+    this.phaserGame.registry.set('cometManagerService', this.cometManagerService);
+    this.phaserGame.registry.set('planetManagerService', this.planetManagerService);
+
 
     this.phaserGame.scene.start('PreloaderScene');
   }
