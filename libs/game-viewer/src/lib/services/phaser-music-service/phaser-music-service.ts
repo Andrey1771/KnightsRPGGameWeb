@@ -14,6 +14,7 @@ export enum SoundsTrack {
   PlayerShipExplosion = "player_ship_explosion",
   InterfaceHover = "interface_hover",
   InterfaceClick = "interface_click",
+  AsteroidExplosion = "asteroid_explosion"
 }
 
 @Injectable({
@@ -78,6 +79,10 @@ export class PhaserMusicService {
     this.sounds.set(
       SoundsTrack.InterfaceClick,
       this.soundManager.add(SoundsTrack.InterfaceClick)
+    );
+    this.sounds.set(
+      SoundsTrack.AsteroidExplosion,
+      this.soundManager.add(SoundsTrack.AsteroidExplosion)
     );
   }
 

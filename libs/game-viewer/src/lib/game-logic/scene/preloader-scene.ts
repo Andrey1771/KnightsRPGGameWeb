@@ -37,6 +37,7 @@ export class PreloaderScene extends Phaser.Scene {
 
     this.load.audio(SoundsTrack.InterfaceHover, 'assets/sounds/interface_hover.wav');
     this.load.audio(SoundsTrack.InterfaceClick, 'assets/sounds/interface_click.wav');
+    this.load.audio(SoundsTrack.AsteroidExplosion, 'assets/sounds/asteroid_explosion.wav');
 
     // Загружаем спрайты и картинки
     this.load.image('background', 'assets/sprites/background/background.png');

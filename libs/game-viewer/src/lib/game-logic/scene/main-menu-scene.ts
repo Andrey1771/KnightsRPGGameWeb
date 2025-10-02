@@ -21,6 +21,14 @@ export class MainMenuScene extends Phaser.Scene {
   private stars: Phaser.GameObjects.Particles.ParticleEmitter[] = [];
   private nebulae: Phaser.GameObjects.Graphics[] = [];
   private planets: Phaser.GameObjects.Container[] = [];
+  private asteroids: Phaser.GameObjects.Graphics[] = [];
+  private explosionEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private asteroidUpdateEvent?: Phaser.Time.TimerEvent;
+  private asteroidsToRemove: number[] = [];
+  private asteroidsToAdd: Phaser.GameObjects.Graphics[] = [];
+  private staticStars: Phaser.GameObjects.Graphics[] = [];
+  private comets: Phaser.GameObjects.Container[] = [];
+  private spaceDust: Phaser.GameObjects.Particles.ParticleEmitter[] = [];
 
   constructor() {
     super({ key: 'MainMenuScene' });
@@ -37,27 +45,289 @@ export class MainMenuScene extends Phaser.Scene {
     this.createSpaceBackground(width, height);
     this.createNebulae(width, height);
     this.createStarfield(width, height);
-    this.createAsteroidField(width, height);
+    this.createStaticStarfield(width, height);
+    this.createSpaceDust(width, height);
+    this.createExplosionEmitter();
     this.createPlanets(width, height);
+    this.createAsteroidField(width, height);
     this.createDistantStars(width, height);
+    this.createComets(width, height);
 
     this.createTitle(width, height);
     this.createMenuButtons(width, height);
   }
 
-  createSpaceBackground(width: number, height: number) {
-    const graphics = this.add.graphics();
-    graphics.fillStyle(0x0a0a1a, 1);
-    graphics.fillRect(0, 0, width, height);
-    graphics.setDepth(-100);
+  // Создаём кометы с хвостом
+  createComets(width: number, height: number) {
+    console.log('Creating comets...');
+
+    // Создаём 2-3 кометы
+    const cometCount = 2 + Math.floor(Math.random() * 2);
+
+    for (let i = 0; i < cometCount; i++) {
+      this.createSimpleComet(width, height);
+    }
+
+    // Запускаем создание новых комет
+    this.time.addEvent({
+      delay: 10000 + Math.random() * 5000,
+      callback: () => this.createSimpleComet(width, height),
+      callbackScope: this,
+      loop: true
+    });
   }
 
+  createSmoothCometTexture(key: string) {
+    const size = 32; // Размер текстуры
+
+    const graphics = this.make.graphics({ x: 0, y: 0 }, false);
+
+    // Создаем мягкое круглое ядро
+    graphics.fillStyle(0xffffff, 1);
+    graphics.fillCircle(size / 2, size / 4, 3);
+
+    // Создаем хвост в форме капли
+    for (let i = 0; i < size * 0.75; i++) {
+      const progress = i / (size * 0.75);
+      const alpha = 0.8 * (1 - progress);
+      const currentWidth = 8 * (1 - progress * 0.7);
+
+      const r = Math.floor(255 * (1 - progress * 0.3));
+      const g = Math.floor(255 * (1 - progress * 0.5));
+      const b = 255;
+      const color = Phaser.Display.Color.GetColor(r, g, b);
+
+      graphics.fillStyle(color, alpha);
+      graphics.fillRect(
+        (size - currentWidth) / 2,
+        size / 4 + i,
+        currentWidth,
+        1.2
+      );
+    }
+
+    graphics.generateTexture(key, size, size);
+    graphics.destroy();
+  }
+
+// Метод создания кометы без лишних деталей
+  createSimpleComet(sceneWidth?: number, sceneHeight?: number) {
+    const width = sceneWidth || this.scale.width;
+    const height = sceneHeight || this.scale.height;
+
+    // Используйте альтернативную текстуру для более плавной кометы
+    const cometKey = 'comet_smooth_' + Date.now() + Math.random();
+    this.createSmoothCometTexture(cometKey); // ← ЗАМЕНИТЕ НА ЭТОТ ВЫЗОВ
+
+    // Остальной код метода остается без изменений...
+    const side = Math.floor(Math.random() * 4);
+    let startX = 0, startY = 0, endX = 0, endY = 0;
+
+    switch (side) {
+      case 0: // Верх → Низ
+        startX = Math.random() * width;
+        startY = -30;
+        endX = startX + (Math.random() - 0.5) * 300;
+        endY = height + 30;
+        break;
+      case 1: // Право → Лево
+        startX = width + 30;
+        startY = Math.random() * height;
+        endX = -30;
+        endY = startY + (Math.random() - 0.5) * 300;
+        break;
+      case 2: // Низ → Верх
+        startX = Math.random() * width;
+        startY = height + 30;
+        endX = startX + (Math.random() - 0.5) * 300;
+        endY = -30;
+        break;
+      case 3: // Лево → Право
+        startX = -30;
+        startY = Math.random() * height;
+        endX = width + 30;
+        endY = startY + (Math.random() - 0.5) * 300;
+        break;
+    }
+
+    const cometContainer = this.add.container(startX, startY);
+    cometContainer.setDepth(-55);
+
+    // Создаём спрайт кометы
+    const cometSprite = this.add.sprite(0, 0, cometKey);
+    cometContainer.add(cometSprite);
+
+    // Вычисляем угол поворота
+    const velocityX = endX - startX;
+    const velocityY = endY - startY;
+    const angle = Math.atan2(velocityY, velocityX);
+    cometSprite.setRotation(angle + Math.PI / 2);
+
+    // Эмиттер частиц для хвоста
+    const tailEmitter = this.add.particles(0, 0, 'star', {
+      follow: cometContainer,
+      x: 0,
+      y: 0,
+      lifespan: 600,
+      speed: { min: 15, max: 40 },
+      angle: { min: angle * (180 / Math.PI) - 8, max: angle * (180 / Math.PI) + 8 },
+      scale: { start: 0.5, end: 0 },
+      alpha: { start: 0.7, end: 0 },
+      quantity: 4,
+      frequency: 40,
+      blendMode: 'ADD',
+      tint: [0x88aaff, 0xaaccff, 0x4466ff]
+    });
+
+    tailEmitter.setDepth(-56);
+
+    // Движение кометы
+    this.tweens.add({
+      targets: cometContainer,
+      x: endX,
+      y: endY,
+      duration: 3500 + Math.random() * 2000,
+      ease: 'Linear',
+      onComplete: () => {
+        cometContainer.destroy();
+        tailEmitter.destroy();
+        const index = this.comets.indexOf(cometContainer);
+        if (index > -1) {
+          this.comets.splice(index, 1);
+        }
+      }
+    });
+
+    this.comets.push(cometContainer);
+    return cometContainer;
+  }
+
+  // Создаём плотное поле статичных звёзд
+  createStaticStarfield(width: number, height: number) {
+    console.log('Creating static starfield...');
+
+    // Создаём 200 статичных звёзд разного размера и яркости
+    for (let i = 0; i < 200; i++) {
+      const star = this.add.graphics();
+      const x = Math.random() * width;
+      const y = Math.random() * height;
+
+      // Разные размеры звёзд
+      const size = Math.random() * 2;
+      const brightness = 0.3 + Math.random() * 0.7;
+
+      // Разные цвета звёзд (белый, голубоватый, желтоватый)
+      const colors = [0xffffff, 0xeeeeff, 0xffffee, 0xffffee];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+
+      star.fillStyle(color, brightness);
+      star.fillCircle(x, y, size);
+      star.setDepth(-85); // Между туманностями и движущимися звёздами
+
+      this.staticStars.push(star);
+    }
+
+    console.log(`Created ${this.staticStars.length} static stars`);
+  }
+
+  // Создаём космическую пыль
+  createSpaceDust(width: number, height: number) {
+    console.log('Creating space dust...');
+
+    // Мелкая космическая пыль
+    const dust1 = this.add.particles(0, 0, 'star', {
+      x: { min: 0, max: width },
+      y: { min: 0, max: height },
+      quantity: 2,
+      frequency: 100,
+      lifespan: 20000,
+      scale: { start: 0.02, end: 0.02 },
+      alpha: { start: 0.1, end: 0.1 },
+      speedX: { min: -1, max: 1 },
+      speedY: { min: -1, max: 1 },
+      blendMode: 'ADD',
+      tint: 0x4466aa
+    });
+    dust1.setDepth(-95);
+
+    // Средняя космическая пыль
+    const dust2 = this.add.particles(0, 0, 'star', {
+      x: { min: 0, max: width },
+      y: { min: 0, max: height },
+      quantity: 1,
+      frequency: 150,
+      lifespan: 15000,
+      scale: { start: 0.04, end: 0.04 },
+      alpha: { start: 0.15, end: 0.15 },
+      speedX: { min: -0.5, max: 0.5 },
+      speedY: { min: -0.5, max: 0.5 },
+      blendMode: 'ADD',
+      tint: 0x6688cc
+    });
+    dust2.setDepth(-94);
+
+    this.spaceDust.push(dust1, dust2);
+  }
+
+  createDistantStars(width: number, height: number) {
+    console.log('Creating distant stars...');
+
+    // Увеличим количество мерцающих звёзд
+    for (let i = 0; i < 25; i++) {
+      const star = this.add.graphics();
+      const x = Math.random() * width;
+      const y = Math.random() * height;
+      const size = 0.8 + Math.random() * 2; // Увеличим размер
+      const brightness = 0.3 + Math.random() * 0.7;
+
+      // Разноцветные мерцающие звёзды
+      const colors = [0xffffff, 0xffffaa, 0xaaffff, 0xffaaff];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+
+      star.fillStyle(color, brightness);
+      star.fillCircle(x, y, size);
+      star.setDepth(-45); // Перед планетами
+
+      // Более разнообразное мерцание
+      const minAlpha = brightness * 0.4;
+      const maxAlpha = brightness;
+      const duration = 1000 + Math.random() * 2000;
+
+      this.tweens.add({
+        targets: star,
+        alpha: { from: minAlpha, to: maxAlpha },
+        duration: duration,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+        delay: Math.random() * 2000
+      });
+
+      // Добавляем лёгкое движение для некоторых звёзд
+      if (Math.random() > 0.7) {
+        this.tweens.add({
+          targets: star,
+          x: x + Phaser.Math.Between(-5, 5),
+          y: y + Phaser.Math.Between(-5, 5),
+          duration: 15000 + Math.random() * 10000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+      }
+    }
+  }
+
+  // УЛУЧШИМ метод создания туманностей
   createNebulae(width: number, height: number) {
     const nebulaData = [
-      { x: 0.2, y: 0.3, color: 0x331155, alpha: 0.08, scale: 1.2 },
-      { x: 0.8, y: 0.7, color: 0x115533, alpha: 0.06, scale: 1.0 },
-      { x: 0.4, y: 0.8, color: 0x551122, alpha: 0.07, scale: 0.9 },
-      { x: 0.7, y: 0.2, color: 0x223355, alpha: 0.05, scale: 1.1 }
+      { x: 0.2, y: 0.3, color: 0x331155, alpha: 0.12, scale: 1.2 }, // Увеличим альфу
+      { x: 0.8, y: 0.7, color: 0x115533, alpha: 0.10, scale: 1.0 },
+      { x: 0.4, y: 0.8, color: 0x551122, alpha: 0.11, scale: 0.9 },
+      { x: 0.7, y: 0.2, color: 0x223355, alpha: 0.09, scale: 1.1 },
+      // Добавим дополнительные туманности
+      { x: 0.1, y: 0.7, color: 0x553366, alpha: 0.08, scale: 0.8 },
+      { x: 0.9, y: 0.1, color: 0x336655, alpha: 0.07, scale: 1.3 }
     ];
 
     nebulaData.forEach((data, index) => {
@@ -66,17 +336,453 @@ export class MainMenuScene extends Phaser.Scene {
       const centerY = height * data.y;
       const radius = 120 * data.scale;
 
-      // Создаём более мягкую туманность
-      for (let i = 0; i < 3; i++) {
-        const currentRadius = radius * (0.6 + i * 0.2);
-        const currentAlpha = data.alpha * (0.8 - i * 0.2);
+      // Создаём более мягкую туманность с большим количеством слоёв
+      for (let i = 0; i < 4; i++) {
+        const currentRadius = radius * (0.5 + i * 0.25);
+        const currentAlpha = data.alpha * (0.9 - i * 0.2);
         graphics.fillStyle(data.color, currentAlpha);
         graphics.fillCircle(centerX, centerY, currentRadius);
       }
 
       graphics.setDepth(-90);
+
+      // Добавляем лёгкую анимацию пульсации для некоторых туманностей
+      if (Math.random() > 0.5) {
+        this.tweens.add({
+          targets: graphics,
+          alpha: { from: data.alpha * 0.8, to: data.alpha },
+          duration: 8000 + Math.random() * 4000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+      }
+
       this.nebulae.push(graphics);
     });
+  }
+
+  createExplosionEmitter() {
+    // Создаём эмиттер для взрывов
+    this.explosionEmitter = this.add.particles(0, 0, 'star', {
+      speed: { min: 20, max: 100 },
+      angle: { min: 0, max: 360 },
+      scale: { start: 0.5, end: 0 },
+      alpha: { start: 1, end: 0 },
+      lifespan: 600,
+      quantity: 10,
+      frequency: -1, // Только по вызову
+      blendMode: 'ADD',
+      tint: [0xff4400, 0xff8844, 0xffff00]
+    });
+    this.explosionEmitter.setDepth(-40);
+  }
+
+  // ЗАМЕНИТЕ метод createAsteroidField на этот:
+  createAsteroidField(width: number, height: number) {
+    console.log('Creating asteroid fields...');
+
+    // Создаём начальные астероиды в случайных позициях по всему пространству
+    for (let i = 0; i < 15; i++) {
+      const asteroid = this.createAsteroidInSpace(width, height);
+      this.asteroids.push(asteroid);
+    }
+
+    console.log(`Created ${this.asteroids.length} initial asteroids`);
+
+    // Запускаем обновление движения
+    this.asteroidUpdateEvent = this.time.addEvent({
+      delay: 16,
+      callback: this.updateAsteroids,
+      callbackScope: this,
+      loop: true
+    });
+  }
+
+// ЗАМЕНИТЕ метод createAsteroid на этот:
+  createAsteroidInSpace(sceneWidth?: number, sceneHeight?: number): Phaser.GameObjects.Graphics {
+    const width = sceneWidth || this.scale.width;
+    const height = sceneHeight || this.scale.height;
+
+    const asteroid = this.add.graphics();
+    const size = 3 + Math.random() * 4;
+
+    const colorVariants = [0x555555, 0x666666, 0x777777];
+    const color = colorVariants[Math.floor(Math.random() * colorVariants.length)];
+
+    // Создаём форму астероида
+    const points = this.generateAsteroidShape(0, 0, size);
+    asteroid.fillStyle(color, 0.9);
+    asteroid.fillPoints(points, true);
+    asteroid.lineStyle(1, 0x444444, 0.6);
+    asteroid.strokePoints(points, true);
+
+    // Случайная позиция ВНУТРИ пространства (не на краях)
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+
+    // Случайное направление движения
+    const speed = 0.3 + Math.random() * 0.4; // Медленнее для более естественного вида
+    const angle = Math.random() * Math.PI * 2;
+
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed;
+
+    asteroid.setPosition(x, y);
+    asteroid.setDepth(-60);
+
+    // Простые данные астероида
+    (asteroid as any).asteroidData = {
+      size: size,
+      velocity: { x: vx, y: vy },
+      rotationSpeed: (Math.random() - 0.5) * 0.01,
+      currentRotation: 0
+    };
+
+    return asteroid;
+  }
+
+// ДОБАВЬТЕ этот метод для создания новых астероидов на краях (когда старые улетают):
+  createAsteroidAtEdge(sceneWidth?: number, sceneHeight?: number): Phaser.GameObjects.Graphics {
+    const width = sceneWidth || this.scale.width;
+    const height = sceneHeight || this.scale.height;
+
+    const asteroid = this.add.graphics();
+    const size = 3 + Math.random() * 4;
+
+    const colorVariants = [0x555555, 0x666666, 0x777777];
+    const color = colorVariants[Math.floor(Math.random() * colorVariants.length)];
+
+    // Создаём форму астероида
+    const points = this.generateAsteroidShape(0, 0, size);
+    asteroid.fillStyle(color, 0.9);
+    asteroid.fillPoints(points, true);
+    asteroid.lineStyle(1, 0x444444, 0.6);
+    asteroid.strokePoints(points, true);
+
+    // Начальная позиция на краю экрана (для новых астероидов)
+    const side = Math.floor(Math.random() * 4);
+    let x, y, vx, vy;
+
+    switch (side) {
+      case 0: // Верх
+        x = Math.random() * width;
+        y = -10;
+        vx = (Math.random() - 0.5) * 0.8;
+        vy = 0.5 + Math.random() * 0.3;
+        break;
+      case 1: // Право
+        x = width + 10;
+        y = Math.random() * height;
+        vx = -0.5 - Math.random() * 0.3;
+        vy = (Math.random() - 0.5) * 0.8;
+        break;
+      case 2: // Низ
+        x = Math.random() * width;
+        y = height + 10;
+        vx = (Math.random() - 0.5) * 0.8;
+        vy = -0.5 - Math.random() * 0.3;
+        break;
+      case 3: // Лево
+        x = -10;
+        y = Math.random() * height;
+        vx = 0.5 + Math.random() * 0.3;
+        vy = (Math.random() - 0.5) * 0.8;
+        break;
+    }
+
+    asteroid.setPosition(x, y);
+    asteroid.setDepth(-60);
+
+    // Простые данные астероида
+    (asteroid as any).asteroidData = {
+      size: size,
+      velocity: { x: vx, y: vy },
+      rotationSpeed: (Math.random() - 0.5) * 0.01,
+      currentRotation: 0
+    };
+
+    return asteroid;
+  }
+
+// ОБНОВИТЕ метод updateAsteroids:
+  updateAsteroids() {
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const margin = 100;
+
+    // Очищаем списки для этого кадра
+    this.asteroidsToRemove = [];
+    this.asteroidsToAdd = [];
+
+    // Отладочная информация
+    if (this.asteroids.length === 0) {
+      console.log('No asteroids in array!');
+      return;
+    }
+
+    // Обновляем каждый астероид
+    for (let i = 0; i < this.asteroids.length; i++) {
+      const asteroid = this.asteroids[i];
+
+      // Проверяем, что астероид ещё существует
+      if (!asteroid || !asteroid.active) {
+        this.asteroidsToRemove.push(i);
+        continue;
+      }
+
+      const data = (asteroid as any).asteroidData;
+
+      // Обновляем позицию
+      asteroid.x += data.velocity.x;
+      asteroid.y += data.velocity.y;
+
+      // Обновляем вращение
+      data.currentRotation += data.rotationSpeed;
+      asteroid.rotation = data.currentRotation;
+
+      // Проверяем выход за пределы с запасом
+      const isOutOfBounds =
+        asteroid.x < -margin ||
+        asteroid.x > width + margin ||
+        asteroid.y < -margin ||
+        asteroid.y > height + margin;
+
+      if (isOutOfBounds) {
+        // Помечаем для удаления
+        this.asteroidsToRemove.push(i);
+      } else {
+        // Проверяем столкновения только если в пределах экрана
+        this.checkAsteroidCollisions(asteroid, i);
+      }
+    }
+
+    // Удаляем помеченные астероиды (в обратном порядке)
+    for (let i = this.asteroidsToRemove.length - 1; i >= 0; i--) {
+      const index = this.asteroidsToRemove[i];
+      const asteroid = this.asteroids[index];
+
+      if (asteroid) {
+        asteroid.destroy();
+      }
+      this.asteroids.splice(index, 1);
+
+      // Создаём новый астероид НА КРАЮ (вместо того чтобы сразу в пространстве)
+      const newAsteroid = this.createAsteroidAtEdge();
+      this.asteroids.push(newAsteroid);
+    }
+
+    // Добавляем новые астероиды
+    this.asteroidsToAdd.forEach(asteroid => {
+      this.asteroids.push(asteroid);
+    });
+    this.asteroidsToAdd = [];
+
+    // Отладочная информация (реже, чтобы не засорять консоль)
+    if (Math.random() < 0.01) { // Только 1% шанс на логирование
+      console.log(`Asteroids: ${this.asteroids.length}, Removed: ${this.asteroidsToRemove.length}, Added: ${this.asteroidsToAdd.length}`);
+    }
+  }
+
+// ОБНОВИТЕ метод explodeAsteroid:
+  explodeAsteroid(asteroid: Phaser.GameObjects.Graphics, asteroidIndex: number) {
+    const asteroidData = (asteroid as any).asteroidData;
+
+    // Создаём взрыв
+    this.createExplosion(asteroid.x, asteroid.y, asteroidData.size);
+
+    // Звук взрыва
+    this._phaserMusicService.playSound(SoundsTrack.AsteroidExplosion);
+
+    // Помечаем для удаления
+    this.asteroidsToRemove.push(asteroidIndex);
+
+    // Анимация взрыва
+    this.tweens.add({
+      targets: asteroid,
+      scaleX: 1.8,
+      scaleY: 1.8,
+      alpha: 0,
+      duration: 200,
+      ease: 'Power2',
+      onComplete: () => {
+        asteroid.destroy();
+
+        // Создаём новый астероид через небольшую задержку НА КРАЮ
+        this.time.delayedCall(500, () => {
+          const newAsteroid = this.createAsteroidAtEdge();
+          this.asteroidsToAdd.push(newAsteroid);
+        });
+      }
+    });
+  }
+
+  createAsteroid(sceneWidth?: number, sceneHeight?: number): Phaser.GameObjects.Graphics {
+    const width = sceneWidth || this.scale.width;
+    const height = sceneHeight || this.scale.height;
+
+    const asteroid = this.add.graphics();
+    const size = 3 + Math.random() * 4;
+
+    const colorVariants = [0x555555, 0x666666, 0x777777];
+    const color = colorVariants[Math.floor(Math.random() * colorVariants.length)];
+
+    // Создаём форму астероида
+    const points = this.generateAsteroidShape(0, 0, size);
+    asteroid.fillStyle(color, 0.9);
+    asteroid.fillPoints(points, true);
+    asteroid.lineStyle(1, 0x444444, 0.6);
+    asteroid.strokePoints(points, true);
+
+    // Начальная позиция на краю экрана
+    const side = Math.floor(Math.random() * 4);
+    let x, y, vx, vy;
+
+    switch (side) {
+      case 0: // Верх
+        x = Math.random() * width;
+        y = -10;
+        vx = (Math.random() - 0.5) * 0.8;
+        vy = 0.5 + Math.random() * 0.3;
+        break;
+      case 1: // Право
+        x = width + 10;
+        y = Math.random() * height;
+        vx = -0.5 - Math.random() * 0.3;
+        vy = (Math.random() - 0.5) * 0.8;
+        break;
+      case 2: // Низ
+        x = Math.random() * width;
+        y = height + 10;
+        vx = (Math.random() - 0.5) * 0.8;
+        vy = -0.5 - Math.random() * 0.3;
+        break;
+      case 3: // Лево
+        x = -10;
+        y = Math.random() * height;
+        vx = 0.5 + Math.random() * 0.3;
+        vy = (Math.random() - 0.5) * 0.8;
+        break;
+    }
+
+    asteroid.setPosition(x, y);
+    asteroid.setDepth(-60);
+
+    // Простые данные астероида
+    (asteroid as any).asteroidData = {
+      size: size,
+      velocity: { x: vx, y: vy },
+      rotationSpeed: (Math.random() - 0.5) * 0.01,
+      currentRotation: 0
+    };
+
+    return asteroid; // ← ВОЗВРАЩАЕМ asteroid, но НЕ добавляем в массив здесь
+  }
+
+  checkAsteroidCollisions(asteroid: Phaser.GameObjects.Graphics, asteroidIndex: number) {
+    const asteroidData = (asteroid as any).asteroidData;
+    const asteroidX = asteroid.x;
+    const asteroidY = asteroid.y;
+    const asteroidSize = asteroidData.size;
+
+    // Проверяем столкновение с каждой планетой
+    for (const planet of this.planets) {
+      const planetX = planet.x;
+      const planetY = planet.y;
+      const planetRadius = (planet as any).planetRadius || 35;
+
+      const distance = Phaser.Math.Distance.Between(asteroidX, asteroidY, planetX, planetY);
+      const collisionDistance = planetRadius + asteroidSize;
+
+      if (distance < collisionDistance) {
+        this.explodeAsteroid(asteroid, asteroidIndex);
+        break; // Прерываем после первого столкновения
+      }
+    }
+  }
+
+  createExplosion(x: number, y: number, size: number) {
+    this.explosionEmitter.setPosition(x, y);
+    this.explosionEmitter.setScale(size / 6);
+    this.explosionEmitter.explode(10 + Math.floor(size * 1.5));
+
+    // Простая вспышка
+    const flash = this.add.graphics();
+    flash.fillStyle(0xffffff, 0.7);
+    flash.fillCircle(x, y, size * 1.5);
+
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      duration: 150,
+      onComplete: () => flash.destroy()
+    });
+  }
+
+  generateAsteroidShape(centerX: number, centerY: number, baseSize: number): Phaser.Types.Math.Vector2Like[] {
+    const points: Phaser.Types.Math.Vector2Like[] = [];
+    const numPoints = 6 + Math.floor(Math.random() * 3);
+
+    for (let i = 0; i < numPoints; i++) {
+      const angle = (i / numPoints) * Math.PI * 2;
+      const variation = 0.7 + Math.random() * 0.6;
+      const radius = baseSize * variation;
+
+      const x = centerX + Math.cos(angle) * radius;
+      const y = centerY + Math.sin(angle) * radius;
+
+      points.push({ x, y });
+    }
+
+    // Замыкаем полигон
+    points.push({ x: points[0].x, y: points[0].y });
+
+    return points;
+  }
+
+  // При уничтожении сцены очищаем таймер
+  destroy() {
+    if (this.asteroidUpdateEvent) {
+      this.asteroidUpdateEvent.remove();
+    }
+    //super.destroy();
+  }
+  
+  createPlanets(width: number, height: number) {
+    const planetData: Array<{ x: number, y: number, scale: number, type: PlanetType }> = [
+      {x: width * 0.15, y: height * 0.2, scale: 0.6, type: PlanetType.GAS},
+      {x: width * 0.85, y: height * 0.25, scale: 0.8, type: PlanetType.EARTH},
+      {x: width * 0.2, y: height * 0.75, scale: 0.5, type: PlanetType.LAVA},
+      {x: width * 0.78, y: height * 0.7, scale: 0.7, type: PlanetType.ICE}
+    ];
+
+    planetData.forEach((data, index) => {
+      const size = 50 + Math.random() * 40;
+      const planet = this.generatePlanet(size, size, data.type);
+      planet.setPosition(data.x, data.y);
+      planet.setScale(data.scale);
+      planet.setDepth(-50 + index);
+
+      // Сохраняем радиус для проверки столкновений
+      (planet as any).planetRadius = (size * data.scale) / 2;
+
+      this.tweens.add({
+        targets: planet,
+        angle: 360,
+        duration: 90000 + Math.random() * 60000,
+        repeat: -1,
+        ease: 'Linear'
+      });
+
+      this.planets.push(planet);
+    });
+  }
+
+  createSpaceBackground(width: number, height: number) {
+    const graphics = this.add.graphics();
+    graphics.fillStyle(0x0a0a1a, 1);
+    graphics.fillRect(0, 0, width, height);
+    graphics.setDepth(-100);
   }
 
   createStarfield(width: number, height: number) {
@@ -109,74 +815,6 @@ export class MainMenuScene extends Phaser.Scene {
     averageStars.setDepth(-70);
 
     this.stars.push(smallStars, averageStars);
-  }
-
-  createAsteroidField(width: number, height: number) {
-    for (let i = 0; i < 2; i++) {
-      const asteroidCount = 8;
-      const fieldX = width * (0.2 + Math.random() * 0.6);
-      const fieldY = height * (0.2 + Math.random() * 0.6);
-      const fieldRadius = 60 + Math.random() * 80;
-
-      for (let j = 0; j < asteroidCount; j++) {
-        const angle = Math.random() * Math.PI * 2;
-        const distance = Math.random() * fieldRadius;
-        const x = fieldX + Math.cos(angle) * distance;
-        const y = fieldY + Math.sin(angle) * distance;
-
-        const asteroid = this.add.graphics();
-        const size = 1 + Math.random() * 3;
-
-        const color = Phaser.Math.Between(0x444444, 0x777777);
-        asteroid.fillStyle(color, 0.9);
-
-        // Рисуем астероид в виде неправильного многоугольника
-        asteroid.fillPoints([
-          { x: x, y: y },
-          { x: x + size, y: y },
-          { x: x + size * 0.8, y: y + size },
-          { x: x, y: y + size * 0.7 }
-        ]);
-
-        asteroid.setDepth(-60);
-
-        this.tweens.add({
-          targets: asteroid,
-          rotation: Math.PI * 2,
-          duration: 12000 + Math.random() * 12000,
-          repeat: -1
-        });
-      }
-    }
-  }
-
-  createPlanets(width: number, height: number) {
-    // Планеты с красивым расположением
-    const planetData: Array<{x: number, y: number, scale: number, type: PlanetType}> = [
-      { x: width * 0.15, y: height * 0.2, scale: 0.6, type: PlanetType.GAS },
-      { x: width * 0.85, y: height * 0.25, scale: 0.8, type: PlanetType.EARTH },
-      { x: width * 0.2, y: height * 0.75, scale: 0.5, type: PlanetType.LAVA },
-      { x: width * 0.78, y: height * 0.7, scale: 0.7, type: PlanetType.ICE }
-    ];
-
-    planetData.forEach((data, index) => {
-      const size = 50 + Math.random() * 40;
-      const planet = this.generatePlanet(size, size, data.type);
-      planet.setPosition(data.x, data.y);
-      planet.setScale(data.scale);
-      planet.setDepth(-50 + index); // Разная глубина для планет
-
-      // Плавное вращение
-      this.tweens.add({
-        targets: planet,
-        angle: 360,
-        duration: 90000 + Math.random() * 60000,
-        repeat: -1,
-        ease: 'Linear'
-      });
-
-      this.planets.push(planet);
-    });
   }
 
   generatePlanet(width: number, height: number, type: PlanetType): Phaser.GameObjects.Container {
@@ -275,31 +913,6 @@ export class MainMenuScene extends Phaser.Scene {
     container.add(atmosphere);
 
     return container;
-  }
-
-  createDistantStars(width: number, height: number) {
-    // Создаём мерцающие далёкие звёзды
-    for (let i = 0; i < 15; i++) {
-      const star = this.add.graphics();
-      const x = Math.random() * width;
-      const y = Math.random() * height;
-      const size = 0.5 + Math.random() * 1.5;
-      const brightness = 0.2 + Math.random() * 0.8;
-
-      star.fillStyle(0xffffff, brightness);
-      star.fillCircle(x, y, size);
-      star.setDepth(-40);
-
-      // Мерцание
-      this.tweens.add({
-        targets: star,
-        alpha: brightness * 0.3,
-        duration: 800 + Math.random() * 1200,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut'
-      });
-    }
   }
 
   createTitle(width: number, height: number) {
