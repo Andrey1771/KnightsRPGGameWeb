@@ -41,15 +41,10 @@ export class UIOverlayScene extends Phaser.Scene {
     this._playerSettingsStore = this.registry.get('playerSettingsStore');
     this._gameStateStore = this.registry.get('lobbyStore');
 
-    const { width, height } = this.scale;
+    const { width } = this.scale;
 
-    // Создаём минималистичную верхнюю панель
     this.createTopPanel(width);
-
-    // Элементы управления слева
     this.createLeftControls(data);
-
-    // Элементы управления справа
     this.createRightControls();
 
     this.events.once('shutdown', this.shutDownListener, this);
@@ -57,11 +52,9 @@ export class UIOverlayScene extends Phaser.Scene {
 
   private createTopPanel(width: number) {
     const panel = this.add.graphics();
-    // Минималистичная полупрозрачная панель
     panel.fillStyle(0x0a0a1a, 0.7);
     panel.fillRect(0, 0, width, 50);
 
-    // Тонкая линия разделитель
     panel.lineStyle(1, 0x4488ff, 0.4);
     panel.lineBetween(0, 50, width, 50);
 
@@ -72,15 +65,13 @@ export class UIOverlayScene extends Phaser.Scene {
     const startX = 15;
     const startY = 25;
 
-    // Поле ввода имени игрока (компактное)
     if (data?.showName) {
-      this.createCompactPlayerNameInput(startX, startY, data.readOnly);
+      this.createPlayerNameInput(startX, startY, data.readOnly);
     }
 
-    // Кнопка паузы (если нужна)
     if (data?.showPauseButton) {
       const pauseX = data?.showName ? startX + 220 : startX;
-      this.pauseButton = this.createCompactIconButton(pauseX, startY, '⏸', 'Пауза', async () => {
+      this.pauseButton = this.createIconButton(pauseX, startY, '⏸', 'Пауза', async () => {
         this._gameStateStore.select(selectLobbyName).pipe(take(1)).pipe(takeUntil(this.destroy$)).subscribe(async (roomName) => {
           if (roomName === "") {
             console.warn("Нет названия комнаты в GameStateStore");
@@ -96,12 +87,11 @@ export class UIOverlayScene extends Phaser.Scene {
     const startX = this.scale.width - 25;
     const buttonSpacing = 45;
 
-    // Кнопка полноэкранного режима (с короткой подсказкой)
-    this.fullscreenButton = this.createCompactIconButton(
+    this.fullscreenButton = this.createIconButton(
       startX - buttonSpacing * 0,
       25,
       '🖵',
-      'Fullscreen', // Короткая подсказка на английском
+      'Полный экран',
       () => {
         if (!this.scale.isFullscreen) {
           this.scale.startFullscreen();
@@ -111,9 +101,8 @@ export class UIOverlayScene extends Phaser.Scene {
       }
     );
 
-    // Кнопка музыки
     const isMusicMuted = this._phaserMusicService.getSettings().musicMuted;
-    this.musicButton = this.createCompactToggleButton(
+    this.musicButton = this.createToggleButton(
       startX - buttonSpacing * 1,
       25,
       '🎵',
@@ -126,9 +115,8 @@ export class UIOverlayScene extends Phaser.Scene {
       }
     );
 
-    // Кнопка звуков
     const isSoundsMuted = this._phaserMusicService.getSettings().soundsMuted;
-    this.soundsButton = this.createCompactToggleButton(
+    this.soundsButton = this.createToggleButton(
       startX - buttonSpacing * 2,
       25,
       '🔊',
@@ -141,55 +129,60 @@ export class UIOverlayScene extends Phaser.Scene {
       }
     );
 
-    // Устанавливаем глубину для всех кнопок
     [this.fullscreenButton, this.musicButton, this.soundsButton].forEach(button => {
       button?.setDepth(1001);
     });
   }
 
-  private createCompactPlayerNameInput(x: number, y: number, readOnly?: boolean) {
-    // Компактный фон для поля ввода
-    const inputBg = this.add.graphics();
-    inputBg.fillStyle(0x112233, 0.6);
-    inputBg.fillRoundedRect(x - 8, y - 18, 180, 36, 6);
-    inputBg.lineStyle(1, 0x4488ff, 0.5);
-    inputBg.strokeRoundedRect(x - 8, y - 18, 180, 36, 6);
-    inputBg.setDepth(1001);
+  private createPlayerNameInput(x: number, y: number, readOnly?: boolean) {
+    const minWidth = 160;
+    const maxWidth = 250;
+    const inputHeight = 32;
 
-    // Компактное поле ввода имени
+    const labelArea = 55;
+    const buttonSpacing = 8;
+    const paddingRight = 8;
+
+    let currentWidth = minWidth;
+
+    const bg = this.add.graphics();
+    const drawBg = (width: number) => {
+      bg.clear();
+      bg.fillStyle(0x223344, 0.7);
+      bg.fillRoundedRect(x, y - inputHeight / 2, width, inputHeight, 16);
+      bg.lineStyle(1.5, 0x4488ff, 0.8);
+      bg.strokeRoundedRect(x, y - inputHeight / 2, width, inputHeight, 16);
+    };
+    drawBg(currentWidth);
+    bg.setDepth(1001);
+
+    const labelText = this.add.text(x + 10, y, "👤 Ник:", {
+      fontSize: "13px",
+      fontFamily: "Arial",
+      color: "#aaccff"
+    }).setOrigin(0, 0.5).setDepth(1002);
+
     this.playerNameInput = this.rexUI.add.inputText({
-      x: x,
+      x: x + labelArea,
       y: y,
-      width: 120,
-      height: 30,
-      type: 'text',
-      fontSize: '14px',
-      fontFamily: 'Courier New',
-      color: '#ffffff',
-      backgroundColor: 'transparent',
-      border: 0,
-      placeholder: 'Имя...',
+      width: minWidth - labelArea - paddingRight,
+      height: inputHeight - 6,
+      type: "text",
+      fontSize: "14px",
+      fontFamily: "Courier New",
+      color: "#ffffff",
+      backgroundColor: "transparent",
+      placeholder: "Имя",
       maxLength: 15,
       readOnly: !!readOnly,
     }).setOrigin(0, 0.5).setDepth(1002);
 
-    this._playerSettingsStore.select(selectPlayerName).pipe(takeUntil(this.destroy$)).subscribe((playerName) => {
-      if (this.playerNameInput) {
-        this.playerNameInput.text = playerName ?? '';
-      }
-    });
-
     if (!readOnly) {
-      this.playerNameInput.on('textchange', (input: InputText) => {
-        this._playerSettingsStore.dispatch(setPlayerName({ name: String(input.text) }));
-      });
-
-      // Компактная кнопка генерации ника
-      this.generateButton = this.createCompactIconButton(
-        x + 140,
+      this.generateButton = this.createIconButton(
+        x + currentWidth + buttonSpacing,
         y,
-        '🎲',
-        'Случайное имя',
+        "🎲",
+        "Случайное имя",
         () => {
           this._playerSettingsStore.dispatch(generateRandomName());
           this._phaserMusicService.playSound(SoundsTrack.InterfaceClick);
@@ -197,17 +190,74 @@ export class UIOverlayScene extends Phaser.Scene {
       );
       this.generateButton.setDepth(1002);
     }
+
+    const resizePlayerNameInput = (text: string) => {
+      const textWidth = Math.max(text.length * 9, 8);
+      const newWidth = Phaser.Math.Clamp(
+        labelArea + textWidth + paddingRight,
+        minWidth,
+        maxWidth
+      );
+
+      if (newWidth !== currentWidth) {
+        currentWidth = newWidth;
+      }
+
+      drawBg(currentWidth);
+
+      if (this.playerNameInput) {
+        const domNode = (this.playerNameInput as any).node as HTMLInputElement;
+        if (domNode) {
+          const inputWidth = currentWidth - labelArea - paddingRight;
+          domNode.style.width = `${inputWidth}px`;
+        }
+      }
+
+      if (this.generateButton) {
+        this.generateButton.setX(x + currentWidth + buttonSpacing + 12);
+      }
+    };
+
+    this._playerSettingsStore.select(selectPlayerName).pipe(takeUntil(this.destroy$)).subscribe((playerName) => {
+      if (this.playerNameInput) {
+        const name = playerName ?? '';
+        this.playerNameInput.text = name;
+        resizePlayerNameInput(name);
+      }
+    });
+
+    if (!readOnly) {
+      this.playerNameInput?.on("textchange", (input: InputText) => {
+        const text = String(input.text ?? "");
+        resizePlayerNameInput(text);
+        this._playerSettingsStore.dispatch(setPlayerName({ name: text }));
+      });
+
+      this.playerNameInput?.setInteractive({ useHandCursor: true })
+        .on('pointerover', () => {
+          bg.clear();
+          bg.fillStyle(0x334455, 0.8);
+          bg.fillRoundedRect(x, y - inputHeight / 2, currentWidth, inputHeight, 16);
+          bg.lineStyle(1.5, 0x66aaff, 1);
+          bg.strokeRoundedRect(x, y - inputHeight / 2, currentWidth, inputHeight, 16);
+        })
+        .on('pointerout', () => {
+          drawBg(currentWidth);
+        });
+    }
+
+    this._playerSettingsStore.select(selectPlayerName).pipe(take(1)).subscribe((initialName) => {
+      resizePlayerNameInput(initialName ?? "");
+    });
   }
 
-  private createCompactIconButton(x: number, y: number, icon: string, tooltip: string, callback: Function): Phaser.GameObjects.Container {
+  private createIconButton(x: number, y: number, icon: string, tooltip: string, callback: Function): Phaser.GameObjects.Container {
     const container = this.add.container(x, y);
     const size = 32;
 
-    // Фон кнопки
     const bg = this.add.graphics();
-    this.drawCompactButtonBg(bg, size, false);
+    this.drawButtonBg(bg, size, false);
 
-    // Иконка
     const iconText = this.add.text(0, 0, icon, {
       fontSize: '16px',
       fontFamily: 'Arial',
@@ -216,37 +266,32 @@ export class UIOverlayScene extends Phaser.Scene {
 
     container.add([bg, iconText]);
 
-    // Область взаимодействия
     const hitArea = new Phaser.Geom.Rectangle(-size/2, -size/2, size, size);
     container.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
 
-    // Сохраняем данные кнопки
     (container as any).buttonData = {
       bg: bg,
       iconText: iconText,
       tooltip: tooltip,
       isToggle: false,
       isActive: false,
-      currentTooltip: null // Ссылка на текущий тултип
+      currentTooltip: null
     };
 
-    // Тултип
     container.on('pointerover', () => {
       const data = (container as any).buttonData;
-      this.drawCompactButtonBg(data.bg, size, true);
+      this.drawButtonBg(data.bg, size, true);
 
-      // Удаляем старый тултип если есть
       if (data.currentTooltip) {
         data.currentTooltip.destroy();
       }
 
-      // Создаем новый тултип с минимальным шрифтом
       data.currentTooltip = this.add.text(x, y + 30, data.tooltip, {
-        fontSize: '10px', // Еще меньше шрифт для компактности
+        fontSize: '11px',
         fontFamily: 'Arial',
         color: '#aaccff',
         backgroundColor: '#000000',
-        padding: { x: 6, y: 3 }
+        padding: { x: 8, y: 4 }
       }).setOrigin(0.5).setDepth(1003);
 
       this._phaserMusicService.playSound(SoundsTrack.InterfaceHover);
@@ -254,7 +299,7 @@ export class UIOverlayScene extends Phaser.Scene {
 
     container.on('pointerout', () => {
       const data = (container as any).buttonData;
-      this.drawCompactButtonBg(data.bg, size, false);
+      this.drawButtonBg(data.bg, size, false);
 
       if (data.currentTooltip) {
         data.currentTooltip.destroy();
@@ -278,15 +323,13 @@ export class UIOverlayScene extends Phaser.Scene {
     return container;
   }
 
-  private createCompactToggleButton(x: number, y: number, icon: string, tooltip: string, isActive: boolean, callback: Function): Phaser.GameObjects.Container {
+  private createToggleButton(x: number, y: number, icon: string, tooltip: string, isActive: boolean, callback: Function): Phaser.GameObjects.Container {
     const container = this.add.container(x, y);
     const size = 32;
 
-    // Фон кнопки
     const bg = this.add.graphics();
-    this.drawCompactToggleButtonBg(bg, size, isActive, false);
+    this.drawToggleButtonBg(bg, size, isActive, false);
 
-    // Иконка
     const iconText = this.add.text(0, 0, icon, {
       fontSize: '16px',
       fontFamily: 'Arial',
@@ -295,45 +338,40 @@ export class UIOverlayScene extends Phaser.Scene {
 
     container.add([bg, iconText]);
 
-    // Область взаимодействия
     const hitArea = new Phaser.Geom.Rectangle(-size/2, -size/2, size, size);
     container.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
 
-    // Сохраняем данные кнопки
     (container as any).buttonData = {
       bg: bg,
       iconText: iconText,
       tooltip: tooltip,
       isToggle: true,
       isActive: isActive,
-      currentTooltip: null // Ссылка на текущий тултип
+      currentTooltip: null
     };
 
-    // Тултип
     container.on('pointerover', () => {
       const data = (container as any).buttonData;
-      this.drawCompactToggleButtonBg(data.bg, size, data.isActive, true);
+      this.drawToggleButtonBg(data.bg, size, data.isActive, true);
       this._phaserMusicService.playSound(SoundsTrack.InterfaceHover);
 
-      // Удаляем старый тултип если есть
       if (data.currentTooltip) {
         data.currentTooltip.destroy();
       }
 
-      // Создаем новый тултип с актуальным состоянием и минимальным шрифтом
       const stateText = data.isActive ? ' (Выкл)' : ' (Вкл)';
       data.currentTooltip = this.add.text(x, y + 30, data.tooltip + stateText, {
-        fontSize: '10px', // Еще меньше шрифт для компактности
+        fontSize: '11px',
         fontFamily: 'Arial',
         color: '#aaccff',
         backgroundColor: '#000000',
-        padding: { x: 6, y: 3 }
+        padding: { x: 8, y: 4 }
       }).setOrigin(0.5).setDepth(1003);
     });
 
     container.on('pointerout', () => {
       const data = (container as any).buttonData;
-      this.drawCompactToggleButtonBg(data.bg, size, data.isActive, false);
+      this.drawToggleButtonBg(data.bg, size, data.isActive, false);
 
       if (data.currentTooltip) {
         data.currentTooltip.destroy();
@@ -357,7 +395,7 @@ export class UIOverlayScene extends Phaser.Scene {
     return container;
   }
 
-  private drawCompactButtonBg(graphics: Phaser.GameObjects.Graphics, size: number, isHovered: boolean) {
+  private drawButtonBg(graphics: Phaser.GameObjects.Graphics, size: number, isHovered: boolean) {
     graphics.clear();
 
     const bgColor = isHovered ? 0x334455 : 0x223344;
@@ -370,7 +408,7 @@ export class UIOverlayScene extends Phaser.Scene {
     graphics.strokeCircle(0, 0, size/2);
   }
 
-  private drawCompactToggleButtonBg(graphics: Phaser.GameObjects.Graphics, size: number, isActive: boolean, isHovered: boolean) {
+  private drawToggleButtonBg(graphics: Phaser.GameObjects.Graphics, size: number, isActive: boolean, isHovered: boolean) {
     graphics.clear();
 
     const bgColor = isActive ? 0x552222 : 0x225522;
@@ -387,14 +425,11 @@ export class UIOverlayScene extends Phaser.Scene {
     const data = (button as any).buttonData;
     if (!data) return;
 
-    // Обновляем состояние
     data.isActive = isActive;
 
-    // Обновляем внешний вид
-    this.drawCompactToggleButtonBg(data.bg, 32, isActive, false);
+    this.drawToggleButtonBg(data.bg, 32, isActive, false);
     data.iconText.setColor(isActive ? '#ff6666' : '#88ff88');
 
-    // Если тултип сейчас отображается - обновляем его
     if (data.currentTooltip && data.currentTooltip.active) {
       const stateText = isActive ? ' (Выкл)' : ' (Вкл)';
       data.currentTooltip.setText(data.tooltip + stateText);
@@ -404,6 +439,5 @@ export class UIOverlayScene extends Phaser.Scene {
   shutDownListener() {
     this.destroy$.next();
     this.destroy$ = new Subject<void>();
-    console.log("ui overlay shutdown");
   }
 }
